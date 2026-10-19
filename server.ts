@@ -43,11 +43,11 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Dynamic DB config getter with safe hosting defaults matching .env
 function getDbConfig(override?: any) {
   return {
-    host: override?.host || process.env.DB_HOST || '103.125.180.59',
+    host: override?.host || process.env.DB_HOST || '',
     port: Number(override?.port || process.env.DB_PORT) || 3306,
-    user: override?.user || process.env.DB_USER || 'serverpp_opensid',
-    password: override?.password !== undefined ? override.password : (process.env.DB_PASSWORD || 'Polisi-123'),
-    database: override?.database || process.env.DB_NAME || 'serverpp_db_anggota',
+    user: override?.user || process.env.DB_USER || '',
+    password: override?.password !== undefined ? override.password : (process.env.DB_PASSWORD || ''),
+    database: override?.database || process.env.DB_NAME || '',
     connectTimeout: 8000,
   };
 }
@@ -309,7 +309,7 @@ app.get('/api/db/status', async (_req, res) => {
   }
 });
 
-// Endpoint untuk menguji koneksi fleksibel (misal tes 'localhost' vs '103.125.180.59')
+// Endpoint untuk menguji koneksi fleksibel (misal tes 'localhost' vs '103.XXX.XXX.XXX')
 app.post('/api/db/test-connection', async (req, res) => {
   const { host, port, user, password, database } = req.body;
   const testConfig = {
