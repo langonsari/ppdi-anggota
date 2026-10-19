@@ -35,11 +35,11 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 function getDbConfig(override) {
   return {
-    host: override?.host || process.env.DB_HOST || "103.125.180.59",
+    host: override?.host || process.env.DB_HOST || "",
     port: Number(override?.port || process.env.DB_PORT) || 3306,
-    user: override?.user || process.env.DB_USER || "serverpp_opensid",
-    password: override?.password !== void 0 ? override.password : process.env.DB_PASSWORD || "Polisi-123",
-    database: override?.database || process.env.DB_NAME || "serverpp_db_anggota",
+    user: override?.user || process.env.DB_USER || "",
+    password: override?.password !== void 0 ? override.password : process.env.DB_PASSWORD || "",
+    database: override?.database || process.env.DB_NAME || "",
     connectTimeout: 8e3
   };
 }
