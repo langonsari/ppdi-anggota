@@ -245,17 +245,78 @@ export function generateNextKTA(
   return `32.04.${kecCode}.${desaCode}.${numStr}`;
 }
 
+// Storage key for user-configured API Base URL
+const API_BASE_URL_KEY = 'ppdi_custom_api_url';
+
+export function getApiBaseUrl(): string {
+  if (typeof window === 'undefined') return '';
+  const stored = localStorage.getItem(API_BASE_URL_KEY);
+  if (stored) return stored.replace(/\/+$/, '');
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  if (envUrl) return envUrl.replace(/\/+$/, '');
+  return '';
+}
+
+export function setApiBaseUrl(url: string): void {
+  if (typeof window === 'undefined') return;
+  const clean = (url || '').trim().replace(/\/+$/, '');
+  if (clean) {
+    localStorage.setItem(API_BASE_URL_KEY, clean);
+  } else {
+    localStorage.removeItem(API_BASE_URL_KEY);
+  }
+}
+
 /**
  * Safe fetch wrapper that handles HTML responses, network errors, and JSON parse failures.
  * Prevents "Unexpected token '<', '<!doctype '... is not valid JSON" errors completely.
+ * Automatically tries http://localhost:3000 if frontend is served on a different port (e.g. Vite, Live Server, XAMPP).
  */
 export async function safeFetchJson<T = any>(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<{ ok: boolean; status: number; data: T & { success?: boolean; message?: string; error?: string }; error?: string }> {
+  let targetUrl: string = typeof input === 'string' ? input : (input instanceof URL ? input.toString() : (input as Request).url);
+  const baseUrl = getApiBaseUrl();
+
+  // If relative path starting with '/' and baseUrl is set, prepend it
+  if (baseUrl && targetUrl.startsWith('/')) {
+    targetUrl = `${baseUrl}${targetUrl}`;
+  }
+
+  const isHtml = (str: string) => {
+    const s = str.trim();
+    return s.startsWith('<!DOCTYPE') || s.startsWith('<!doctype') || s.startsWith('<html') || s.startsWith('<');
+  };
+
   try {
-    const res = await fetch(input, init);
-    const text = await res.text();
+    let res = await fetch(targetUrl, init);
+    let text = await res.text();
+
+    // Auto-probe fallback:
+    // If relative request to /api/... returned 404 or HTML, AND user is on a different port than 3000 (e.g. 5173, 4173, 80, 8080)
+    if (
+      (res.status === 404 || isHtml(text)) &&
+      typeof window !== 'undefined' &&
+      !baseUrl &&
+      targetUrl.startsWith('/api') &&
+      window.location.port !== '3000'
+    ) {
+      const probeUrl = `${window.location.protocol}//${window.location.hostname}:3000${targetUrl}`;
+      try {
+        const probeRes = await fetch(probeUrl, init);
+        const probeText = await probeRes.text();
+        if (probeRes.ok && !isHtml(probeText)) {
+          // Port 3000 backend is active! Automatically register it as active API base URL
+          const detectedBase = `${window.location.protocol}//${window.location.hostname}:3000`;
+          setApiBaseUrl(detectedBase);
+          res = probeRes;
+          text = probeText;
+        }
+      } catch (_) {
+        // Probe failed, continue with standard error reporting
+      }
+    }
 
     if (!text || !text.trim()) {
       return { ok: res.ok, status: res.status, data: { success: res.ok } as any };
@@ -263,16 +324,16 @@ export async function safeFetchJson<T = any>(
 
     // Check if the response returned an HTML document instead of JSON
     const trimmed = text.trim();
-    if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<!doctype') || trimmed.startsWith('<html') || trimmed.startsWith('<')) {
+    if (isHtml(trimmed)) {
       const isNotFound = res.status === 404;
       const isGatewayError = res.status === 502 || res.status === 503 || res.status === 504;
-      let errorMsg = `Server hosting mengembalikan halaman HTML (Status ${res.status}).`;
+      let errorMsg = `Server mengembalikan halaman HTML (Status ${res.status}).`;
       if (isNotFound) {
-        errorMsg = `Endpoint API tidak ditemukan (404). Server backend kemungkinan belum mengaktifkan route ini.`;
+        errorMsg = `Endpoint API tidak ditemukan (404 HTML). Server backend Node.js (server.js) belum dijalankan di port 3000 atau rute /api belum di-proxy oleh web server lokal. Solusi: Jalankan "npm start" atau "node server.js" di terminal, lalu buka http://localhost:3000 di browser.`;
       } else if (isGatewayError) {
-        errorMsg = `Server hosting tidak dapat dijangkau (Gateway Error ${res.status}). Pastikan service Node.js sedang berjalan di cPanel.`;
+        errorMsg = `Server backend tidak dapat dijangkau (Gateway Error ${res.status}). Pastikan service Node.js sedang berjalan di port 3000.`;
       } else {
-        errorMsg = `Server hosting mengembalikan halaman web (HTML, status ${res.status}) bukannya data JSON. Pastikan aplikasi Node.js (server.js) berjalan di hosting.`;
+        errorMsg = `Server mengembalikan halaman web (HTML, status ${res.status}) bukannya data JSON. Pastikan aplikasi Node.js (server.js) berjalan di port 3000.`;
       }
       return {
         ok: false,
@@ -295,6 +356,26 @@ export async function safeFetchJson<T = any>(
       };
     }
   } catch (netErr: any) {
+    // If network error occurred on relative path and we're not on port 3000, attempt probe
+    if (
+      typeof window !== 'undefined' &&
+      !baseUrl &&
+      targetUrl.startsWith('/api') &&
+      window.location.port !== '3000'
+    ) {
+      const probeUrl = `${window.location.protocol}//${window.location.hostname}:3000${targetUrl}`;
+      try {
+        const probeRes = await fetch(probeUrl, init);
+        const probeText = await probeRes.text();
+        if (probeRes.ok && !isHtml(probeText)) {
+          const detectedBase = `${window.location.protocol}//${window.location.hostname}:3000`;
+          setApiBaseUrl(detectedBase);
+          const data = JSON.parse(probeText);
+          return { ok: probeRes.ok, status: probeRes.status, data };
+        }
+      } catch (_) {}
+    }
+
     const errorMsg = netErr.message || 'Koneksi jaringan ke server gagal';
     return {
       ok: false,

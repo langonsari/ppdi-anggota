@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePPDI } from '../context/PPDIContext';
+import { getApiBaseUrl, setApiBaseUrl } from '../utils/ppdiHelpers';
 import {
   Database,
   X,
@@ -20,6 +21,8 @@ import {
   ChevronUp,
   Settings,
   Flame,
+  Laptop,
+  Globe,
 } from 'lucide-react';
 
 interface DbConnectionModalProps {
@@ -38,7 +41,7 @@ export const DbConnectionModal: React.FC<DbConnectionModalProps> = ({ isOpen, on
     initDbTables,
   } = usePPDI();
 
-  const [activeTab, setActiveTab] = useState<'status' | 'diagnosa' | 'config' | 'guide'>('status');
+  const [activeTab, setActiveTab] = useState<'status' | 'localguide' | 'guide' | 'config'>('status');
   const [isTesting, setIsTesting] = useState(false);
   const [isTestingLocalhost, setIsTestingLocalhost] = useState(false);
   const [testResult, setTestResult] = useState<any | null>(null);
@@ -46,18 +49,60 @@ export const DbConnectionModal: React.FC<DbConnectionModalProps> = ({ isOpen, on
   const [initMsg, setInitMsg] = useState<{ success: boolean; message: string } | null>(null);
   const [copiedCmd, setCopiedCmd] = useState(false);
   const [copiedEnv, setCopiedEnv] = useState(false);
+  const [copiedLocalEnv, setCopiedLocalEnv] = useState(false);
 
   // Form state for config editing
-  const [cfgHost, setCfgHost] = useState(dbStatus?.host || '103.125.180.59');
+  const [cfgHost, setCfgHost] = useState(dbStatus?.host || '');
   const [cfgPort, setCfgPort] = useState(String(dbStatus?.port || '3306'));
-  const [cfgDatabase, setCfgDatabase] = useState(dbStatus?.database || 'serverpp_db_anggota');
-  const [cfgUser, setCfgUser] = useState(dbStatus?.user || 'serverpp_opensid');
-  const [cfgPassword, setCfgPassword] = useState('Polisi-123');
+  const [cfgDatabase, setCfgDatabase] = useState(dbStatus?.database || '');
+  const [cfgUser, setCfgUser] = useState(dbStatus?.user || '');
+  const [cfgPassword, setCfgPassword] = useState('');
   const [isSavingCfg, setIsSavingCfg] = useState(false);
   const [cfgSaveMsg, setCfgSaveMsg] = useState<{ success: boolean; message: string } | null>(null);
 
   // Accordion state in guide tab
   const [openGuideIndex, setOpenGuideIndex] = useState<number | null>(0);
+  const [openLocalGuideIndex, setOpenLocalGuideIndex] = useState<number | null>(0);
+
+  // Custom API Backend URL state
+  const [customApiUrl, setCustomApiUrl] = useState(getApiBaseUrl() || '');
+  const [apiUrlMsg, setApiUrlMsg] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleApplyApiUrl = (url: string) => {
+    setApiBaseUrl(url);
+    setCustomApiUrl(url);
+    setApiUrlMsg({
+      success: true,
+      message: url ? `URL Backend diatur ke: ${url}` : 'URL Backend dikembalikan ke default (relatif / terintegrasi)',
+    });
+    // Trigger immediate ping
+    checkDbStatus();
+  };
+
+  // Preset handlers
+  const handlePresetLocalhost = () => {
+    setCfgHost('localhost');
+    setCfgPort('3306');
+    setCfgDatabase('');
+    setCfgUser('root');
+    setCfgPassword('');
+    setCfgSaveMsg({
+      success: true,
+      message: 'Preset XAMPP / Localhost telah dimuat! Silakan isi nama database Anda lalu klik "Simpan & Terapkan Konfigurasi".',
+    });
+  };
+
+  const handlePresetClear = () => {
+    setCfgHost('');
+    setCfgPort('3306');
+    setCfgDatabase('');
+    setCfgUser('');
+    setCfgPassword('');
+    setCfgSaveMsg({
+      success: true,
+      message: 'Form konfigurasi dikosongkan. Silakan isi kredensial MySQL baru Anda.',
+    });
+  };
 
   if (!isOpen) return null;
 
@@ -143,14 +188,14 @@ export const DbConnectionModal: React.FC<DbConnectionModalProps> = ({ isOpen, on
     setIsInitializing(false);
   };
 
-  const connectionString = `mysql -h ${dbStatus?.host || '103.125.180.59'} -u ${dbStatus?.user || 'serverpp_opensid'} -p ${dbStatus?.database || 'serverpp_db_anggota'}`;
+  const connectionString = `mysql -h ${dbStatus?.host || 'localhost'} -u ${dbStatus?.user || 'root'} -p ${dbStatus?.database || 'nama_database'}`;
 
   const envSample = `# Konfigurasi Database MySQL PPDI Kab. Bandung
-DB_HOST="${dbStatus?.host || '103.125.180.59'}"
-DB_PORT="3306"
-DB_USER="${dbStatus?.user || 'serverpp_opensid'}"
-DB_PASSWORD="Polisi-123"
-DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
+DB_HOST="${dbStatus?.host || 'localhost'}"
+DB_PORT="${dbStatus?.port || '3306'}"
+DB_USER="${dbStatus?.user || ''}"
+DB_PASSWORD=""
+DB_NAME="${dbStatus?.database || ''}"
 `;
 
   const copyCmd = () => {
@@ -165,12 +210,75 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
     setTimeout(() => setCopiedEnv(false), 2000);
   };
 
+  const copyLocalEnv = () => {
+    navigator.clipboard.writeText(localEnvSample);
+    setCopiedLocalEnv(true);
+    setTimeout(() => setCopiedLocalEnv(false), 2000);
+  };
+
+  const localEnvSample = `# Konfigurasi Database MySQL Server Lokal (XAMPP / Laragon / Localhost)
+PORT="3000"
+NODE_ENV="production"
+DB_HOST="localhost"
+DB_PORT="3306"
+DB_USER="root"
+DB_PASSWORD=""
+DB_NAME=""
+`;
+
+  const localGuideItems = [
+    {
+      title: '1. Mengapa Muncul Error "HTTP_404 / Endpoint API Tidak Ditemukan"?',
+      desc: 'Setelah Anda menjalankan "npm run build", aplikasi menghasilkan folder dist (frontend) dan server.js (backend Express):',
+      steps: [
+        'Aplikasi ini adalah Full-Stack Web App (React di frontend + Node.js Express di backend).',
+        'Jika Anda membuka folder dist langsung di browser, atau menjalankannya via XAMPP Apache / Live Server tanpa Node.js, backend belum aktif.',
+        'Akibatnya saat browser memanggil rute API (/api/db/status atau /api/anggota), server statis merespons dengan 404 (Not Found).',
+        'Solusinya: Buka Terminal / Command Prompt di folder proyek Anda, lalu jalankan: "npm start" (atau "node server.js").',
+        'Buka browser Anda di alamat: http://localhost:3000.',
+      ],
+    },
+    {
+      title: '2. Cara Menyiapkan Database MySQL Lokal di XAMPP / Laragon',
+      desc: 'Jika Anda ingin menyimpan data ke MySQL di laptop/komputer server lokal Anda sendiri:',
+      steps: [
+        'Buka XAMPP Control Panel, pastikan service "MySQL" dan "Apache" sudah berstatus Running (Start).',
+        'Buka browser dan akses phpMyAdmin di: http://localhost/phpmyadmin.',
+        'Klik menu "Databases" / "Basis Data", ketikkan nama database baru (misal: db_ppdi) dengan Collation: utf8mb4_general_ci, lalu klik "Create".',
+        'Buka tab "Ubah Konfigurasi (.env)" di modal ini, lalu klik tombol "Preset XAMPP/Localhost".',
+        'Ketikkan nama database yang telah Anda buat di kolom DB_NAME.',
+        'Klik "Simpan & Terapkan Konfigurasi". Sistem akan otomatis tersambung ke MySQL lokal Anda.',
+        'Buka kembali tab "Status & Uji Koneksi", lalu klik tombol "Inisialisasi Seluruh Tabel SQL". Semua tabel PPDI akan dibuat otomatis!',
+      ],
+    },
+    {
+      title: '3. Langkah Lengkap Build & Menjalankan di Server Lokal',
+      desc: 'Panduan baris perintah (CLI) lengkap di Command Prompt atau Terminal:',
+      steps: [
+        '1. npm install   (memastikan semua dependensi terpasang)',
+        '2. npm run build (mengompilasi frontend ke folder dist dan backend ke server.js)',
+        '3. npm start     (menjalankan server produksi di http://localhost:3000)',
+        '4. Akses http://localhost:3000 pada Google Chrome / Firefox / Edge.',
+      ],
+    },
+    {
+      title: '4. Menghubungkan ke MySQL Remote Hosting dari Komputer Lokal',
+      desc: 'Jika komputer lokal Anda ingin langsung terhubung ke database server hosting:',
+      steps: [
+        'Buka cPanel server database di domain atau IP server hosting Anda (port 2083).',
+        'Pilih menu "Remote MySQL" di bagian Databases.',
+        'Masukkan tanda "%" pada Access Host lalu klik "Add Host" agar firewall hosting mengizinkan koneksi dari IP lokal Anda.',
+        'Pastikan host, user, dan password database diisi dengan benar di tab "Ubah Konfigurasi (.env)".',
+      ],
+    },
+  ];
+
   const guideItems = [
     {
       title: '1. Masalah ETIMEDOUT / Firewall Port 3306 (Paling Sering)',
       desc: 'Jika Anda melihat error ETIMEDOUT (Connection timed out) saat membuka website di hosting:',
       steps: [
-        'Buka cPanel server database di https://103.125.180.59:2083 atau domain hosting Anda.',
+        'Buka cPanel server database di domain hosting Anda (port 2083).',
         'Cari dan klik menu "Remote MySQL" di bagian DATABASES.',
         'Pada kotak "Add Access Host", masukkan tanda "%" (tanda persen, artinya izinkan semua host) atau masukkan IP publik server tempat aplikasi Anda di-hosting.',
         'Klik tombol "Add Host". Port 3306 sekarang akan menerima koneksi dari hosting Anda.',
@@ -180,8 +288,8 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
       title: '2. Website dan Database Berada di Server Hosting cPanel yang SAMA',
       desc: 'Jika Anda mengunggah aplikasi Node.js ke cPanel yang sama dengan database MySQL:',
       steps: [
-        'Firewall internal cPanel (CSF/iptables) seringkali memblokir koneksi ke IP publiknya sendiri (103.125.180.59).',
-        'Solusinya: Jangan gunakan IP 103.125.180.59, melainkan gunakan "localhost" atau "127.0.0.1" pada DB_HOST.',
+        'Firewall internal cPanel (CSF/iptables) seringkali memblokir koneksi ke IP publiknya sendiri.',
+        'Solusinya: Gunakan "localhost" atau "127.0.0.1" pada DB_HOST jika web dan DB berada di server yang sama.',
         'Klik tombol "Uji Koneksi ke localhost" di atas atau ubah DB_HOST di tab "Ubah .env".',
       ],
     },
@@ -201,7 +309,7 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
       desc: 'Jika muncul error ER_ACCESS_DENIED_ERROR:',
       steps: [
         'Buka cPanel -> "MySQL Databases".',
-        'Di bagian "Add User To Database", pilih User serverpp_opensid dan Database serverpp_db_anggota.',
+        'Di bagian "Add User To Database", pilih User dan Database yang telah Anda buat.',
         'Klik "Add", lalu beri centang pada "ALL PRIVILEGES" dan klik "Make Changes".',
       ],
     },
@@ -229,7 +337,7 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm sm:text-base font-bold text-neutral-900">
-                  Diagnostik Koneksi Database MySQL Hosting
+                  Diagnostik Koneksi Database MySQL
                 </h2>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                   dbStatus?.success ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
@@ -238,7 +346,7 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
                 </span>
               </div>
               <p className="text-[11px] text-neutral-500">
-                Pangkalan Data: <span className="font-mono font-semibold text-neutral-800">{dbStatus?.database || 'serverpp_db_anggota'}</span> · Host: <span className="font-mono font-semibold text-neutral-800">{dbStatus?.host || '103.125.180.59'}</span>
+                Pangkalan Data: <span className="font-mono font-semibold text-neutral-800">{dbStatus?.database || '-'}</span> · Host: <span className="font-mono font-semibold text-neutral-800">{dbStatus?.host || '-'}</span>
               </p>
             </div>
           </div>
@@ -251,10 +359,10 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center border-b border-neutral-200 bg-neutral-100/70 px-4 text-xs font-semibold">
+        <div className="flex items-center border-b border-neutral-200 bg-neutral-100/70 px-4 text-xs font-semibold overflow-x-auto">
           <button
             onClick={() => setActiveTab('status')}
-            className={`py-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`py-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === 'status'
                 ? 'border-emerald-800 text-emerald-900 font-bold bg-white'
                 : 'border-transparent text-neutral-600 hover:text-neutral-900'
@@ -265,20 +373,32 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
           </button>
 
           <button
+            onClick={() => setActiveTab('localguide')}
+            className={`py-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              activeTab === 'localguide'
+                ? 'border-emerald-800 text-emerald-900 font-bold bg-white'
+                : 'border-transparent text-neutral-600 hover:text-neutral-900'
+            }`}
+          >
+            <Laptop className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Panduan Server Lokal</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('guide')}
-            className={`py-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`py-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === 'guide'
                 ? 'border-emerald-800 text-emerald-900 font-bold bg-white'
                 : 'border-transparent text-neutral-600 hover:text-neutral-900'
             }`}
           >
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>Panduan Hosting cPanel</span>
+            <span>Panduan cPanel</span>
           </button>
 
           <button
             onClick={() => setActiveTab('config')}
-            className={`py-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`py-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === 'config'
                 ? 'border-emerald-800 text-emerald-900 font-bold bg-white'
                 : 'border-transparent text-neutral-600 hover:text-neutral-900'
@@ -294,6 +414,76 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
           {/* TAB 1: STATUS & UJI KONEKSI */}
           {activeTab === 'status' && (
             <div className="space-y-4">
+              {/* Critical Alert if HTTP_404 or backend not running */}
+              {(dbStatus?.code === 'HTTP_404' || dbStatus?.error?.includes('404') || dbStatus?.status?.includes('HTML')) && (
+                <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-xl text-neutral-900 text-xs space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <div className="p-1.5 bg-amber-200 text-amber-900 rounded-lg shrink-0 mt-0.5">
+                      <Laptop className="w-5 h-5 text-amber-900" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-amber-950 text-xs sm:text-sm">
+                        Penyebab Utama: Backend Node.js (server.js) Belum Dijalankan di Server Lokal
+                      </h3>
+                      <p className="text-[11px] text-amber-900 mt-1 leading-relaxed">
+                        Error <strong>HTTP_404 (Endpoint API Tidak Ditemukan)</strong> terjadi karena browser mengakses halaman web statis, namun backend Node.js belum aktif untuk melayani rute API database (<code className="bg-amber-100 font-mono px-1 rounded">/api/db/status</code>).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-lg border border-amber-200 font-mono text-[11px] space-y-1.5">
+                    <div className="font-sans font-bold text-[10px] text-neutral-500 uppercase tracking-wide">
+                      Langkah Menjalankan di Komputer / Server Lokal:
+                    </div>
+                    <div className="text-emerald-800 font-bold flex items-center gap-1.5">
+                      <Terminal className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                      <span>1. Buka Terminal / CMD di folder proyek Anda</span>
+                    </div>
+                    <div className="text-emerald-900 font-bold bg-neutral-100 p-2 rounded flex items-center justify-between">
+                      <span>npm start</span>
+                      <span className="text-[10px] text-neutral-500 font-sans font-normal">(atau: node server.js)</span>
+                    </div>
+                    <div className="text-neutral-800 text-[11px]">
+                      2. Buka browser di alamat: <strong className="text-emerald-800 font-bold">http://localhost:3000</strong>
+                    </div>
+                    <div className="text-neutral-500 text-[10px] font-sans">
+                      * Jangan membuka file dari folder dist via XAMPP htdocs atau Live Server tanpa menyalakan server.js.
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-200">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyApiUrl(`http://${typeof window !== 'undefined' ? (window.location.hostname || 'localhost') : 'localhost'}:3000`)}
+                        className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-amber-300 rounded text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <Laptop className="w-3.5 h-3.5" />
+                        <span>Hubungkan ke Backend Port 3000</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('localguide')}
+                        className="text-[11px] font-bold text-amber-900 hover:text-amber-950 underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Panduan Server Lokal</span>
+                        <ChevronDown className="w-3 h-3 -rotate-90" />
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handlePresetLocalhost();
+                        setActiveTab('config');
+                      }}
+                      className="px-3 py-1 bg-amber-700 hover:bg-amber-800 text-white rounded text-xs font-semibold cursor-pointer"
+                    >
+                      Gunakan DB Localhost
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Primary Status Card */}
               <div
                 className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
@@ -384,7 +574,7 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
                       <span>Solusi Cepat untuk Server cPanel:</span>
                     </div>
                     <p className="text-[11px] text-amber-800 mt-0.5">
-                      Jika web dan database di server cPanel yang sama, IP 103.125.180.59 sering diblokir firewall lokal.
+                      Jika web dan database di hosting yang sama, gunakan "localhost" pada DB_HOST untuk menghindari blokir firewall.
                     </p>
                   </div>
                   <button
@@ -421,7 +611,7 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                   <div>
                     <span className="text-neutral-400 text-[10px] block">URL / IP Server</span>
-                    <span className="font-mono font-bold text-neutral-900">{dbStatus?.host || '103.125.180.59'}</span>
+                    <span className="font-mono font-bold text-neutral-900">{dbStatus?.host || '-'}</span>
                   </div>
                   <div>
                     <span className="text-neutral-400 text-[10px] block">Port MySQL</span>
@@ -429,11 +619,11 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
                   </div>
                   <div>
                     <span className="text-neutral-400 text-[10px] block">User MySQL</span>
-                    <span className="font-mono font-bold text-neutral-900">{dbStatus?.user || 'serverpp_opensid'}</span>
+                    <span className="font-mono font-bold text-neutral-900">{dbStatus?.user || '-'}</span>
                   </div>
                   <div>
                     <span className="text-neutral-400 text-[10px] block">Nama Database</span>
-                    <span className="font-mono font-bold text-emerald-800">{dbStatus?.database || 'serverpp_db_anggota'}</span>
+                    <span className="font-mono font-bold text-emerald-800">{dbStatus?.database || '-'}</span>
                   </div>
                   <div>
                     <span className="text-neutral-400 text-[10px] block">Password</span>
@@ -505,7 +695,73 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
             </div>
           )}
 
-          {/* TAB 2: PANDUAN HOSTING CPANEL */}
+          {/* TAB 2: PANDUAN SERVER LOKAL */}
+          {activeTab === 'localguide' && (
+            <div className="space-y-4">
+              <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900">
+                <div className="font-bold flex items-center gap-1.5 text-emerald-950 mb-1">
+                  <Laptop className="w-4 h-4 text-emerald-700" />
+                  <span>Panduan Menjalankan di Server Lokal (Localhost / XAMPP / Laragon)</span>
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  Setelah menjalankan perintah <code>npm run build</code>, aplikasi menghasilkan file frontend di <code>dist/</code> dan backend di <code>server.js</code>.
+                  Pastikan Anda menyalakan backend Express melalui <code>npm start</code> agar endpoint database (<code>/api/db/*</code>) dapat diakses.
+                </p>
+              </div>
+
+              {/* Accordion Local Guide Items */}
+              <div className="space-y-2">
+                {localGuideItems.map((item, idx) => (
+                  <div key={idx} className="border border-neutral-200 rounded-xl overflow-hidden bg-white">
+                    <button
+                      onClick={() => setOpenLocalGuideIndex(openLocalGuideIndex === idx ? null : idx)}
+                      className="w-full px-4 py-3 text-left font-bold text-neutral-800 hover:bg-neutral-50 flex items-center justify-between gap-2 cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Terminal className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                        <span>{item.title}</span>
+                      </span>
+                      {openLocalGuideIndex === idx ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
+                    </button>
+                    {openLocalGuideIndex === idx && (
+                      <div className="px-4 pb-4 pt-1 border-t border-neutral-100 text-neutral-700 bg-neutral-50/50 space-y-2">
+                        <p className="text-xs text-neutral-600">{item.desc}</p>
+                        <ol className="list-decimal pl-5 space-y-1.5 text-xs text-neutral-800">
+                          {item.steps.map((s, sIdx) => (
+                            <li key={sIdx} className="leading-relaxed">
+                              {s}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Quick Copy Localhost .env Box */}
+              <div className="p-4 bg-neutral-900 rounded-xl text-white space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold flex items-center gap-1.5 text-amber-300">
+                    <FileCode className="w-4 h-4" />
+                    <span>Konfigurasi .env untuk Server Lokal (XAMPP / Laragon):</span>
+                  </span>
+                  <button
+                    onClick={copyLocalEnv}
+                    className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded text-xs font-mono flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    {copiedLocalEnv ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedLocalEnv ? 'Tersalin' : 'Salin .env Lokal'}</span>
+                  </button>
+                </div>
+                <pre className="font-mono text-[11px] text-amber-200/90 overflow-x-auto p-2 bg-black/40 rounded border border-white/10 select-all">
+                  {localEnvSample}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: PANDUAN HOSTING CPANEL */}
           {activeTab === 'guide' && (
             <div className="space-y-4">
               <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900">
@@ -569,11 +825,47 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
             </div>
           )}
 
-          {/* TAB 3: UBAH KONFIGURASI (.ENV) */}
+          {/* TAB 4: UBAH KONFIGURASI (.ENV) */}
           {activeTab === 'config' && (
             <form onSubmit={handleSaveConfig} className="space-y-4">
               <div className="p-3 bg-neutral-100 rounded-xl text-neutral-700 text-xs">
-                Perubahan pada form ini akan langsung ditulis ke file <code>.env</code> di hosting dan koneksi database MySQL akan segera dihubungkan ulang.
+                Perubahan pada form ini akan langsung ditulis ke file <code>.env</code> dan koneksi database MySQL akan segera dihubungkan ulang.
+              </div>
+
+              {/* Presets Selector */}
+              <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2">
+                <div className="text-[11px] font-bold text-neutral-800 flex items-center justify-between">
+                  <span>Pilih Preset Konfigurasi Cepat:</span>
+                  <span className="text-[10px] text-neutral-500 font-normal">Klik untuk mengisi otomatis form</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePresetLocalhost}
+                    className="p-2.5 bg-white hover:bg-emerald-50 border border-neutral-300 hover:border-emerald-500 rounded-lg text-left transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-neutral-800 group-hover:text-emerald-900 text-xs">
+                      <Laptop className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Preset XAMPP / Localhost</span>
+                    </div>
+                    <div className="text-[10px] text-neutral-500 mt-0.5 font-mono">
+                      Host: localhost · User: root
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePresetClear}
+                    className="p-2.5 bg-white hover:bg-neutral-50 border border-neutral-300 hover:border-neutral-500 rounded-lg text-left transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-neutral-800 group-hover:text-neutral-900 text-xs">
+                      <RefreshCw className="w-3.5 h-3.5 text-neutral-600" />
+                      <span>Kosongkan / Reset Form</span>
+                    </div>
+                    <div className="text-[10px] text-neutral-500 mt-0.5 font-mono">
+                      Reset seluruh input konfigurasi
+                    </div>
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -584,7 +876,7 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
                     value={cfgHost}
                     onChange={(e) => setCfgHost(e.target.value)}
                     required
-                    placeholder="103.125.180.59 atau localhost"
+                    placeholder="localhost atau IP server hosting"
                     className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg font-mono text-neutral-900 focus:ring-2 focus:ring-[#064E3B] outline-none"
                   />
                   <span className="text-[10px] text-neutral-500 block">
@@ -611,7 +903,7 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
                     value={cfgDatabase}
                     onChange={(e) => setCfgDatabase(e.target.value)}
                     required
-                    placeholder="serverpp_db_anggota"
+                    placeholder="nama_database_mysql"
                     className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg font-mono text-neutral-900 focus:ring-2 focus:ring-[#064E3B] outline-none"
                   />
                 </div>
@@ -623,7 +915,7 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
                     value={cfgUser}
                     onChange={(e) => setCfgUser(e.target.value)}
                     required
-                    placeholder="serverpp_opensid"
+                    placeholder="username_mysql"
                     className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg font-mono text-neutral-900 focus:ring-2 focus:ring-[#064E3B] outline-none"
                   />
                 </div>
@@ -634,7 +926,7 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
                     type="password"
                     value={cfgPassword}
                     onChange={(e) => setCfgPassword(e.target.value)}
-                    placeholder="Polisi-123"
+                    placeholder="Password database MySQL (biarkan kosong jika tanpa password)"
                     className="w-full p-2.5 bg-white border border-neutral-300 rounded-lg font-mono text-neutral-900 focus:ring-2 focus:ring-[#064E3B] outline-none"
                   />
                 </div>
@@ -670,6 +962,53 @@ DB_NAME="${dbStatus?.database || 'serverpp_db_anggota'}"
                 >
                   {isSavingCfg ? 'Menyimpan & Menghubungkan...' : 'Simpan ke .env & Hubungkan Ulang'}
                 </button>
+              </div>
+
+              {/* Custom API Base URL Setting (For separate frontend/backend or custom port) */}
+              <div className="mt-4 p-3.5 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-emerald-800" />
+                    <span className="font-bold text-neutral-800 text-xs">URL Server Backend (API Node.js)</span>
+                  </div>
+                  <span className="text-[10px] text-neutral-500 font-mono">
+                    {customApiUrl ? customApiUrl : 'Default: Terintegrasi (Port 3000)'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-neutral-600 leading-relaxed">
+                  Jika aplikasi frontend dibuka di server terpisah (misal XAMPP Apache di port 80 atau Vite di port 5173/4173), tentukan alamat backend Express Anda di bawah ini:
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={customApiUrl}
+                    onChange={(e) => setCustomApiUrl(e.target.value)}
+                    placeholder="http://localhost:3000 atau https://domain-hosting-anda.com"
+                    className="flex-1 p-2 bg-white border border-neutral-300 rounded-lg font-mono text-xs text-neutral-900 focus:ring-2 focus:ring-[#064E3B] outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleApplyApiUrl(customApiUrl)}
+                    className="px-3.5 py-2 bg-emerald-800 hover:bg-emerald-900 text-amber-300 font-bold text-xs rounded-lg cursor-pointer whitespace-nowrap shadow-xs"
+                  >
+                    Terapkan & Uji
+                  </button>
+                  {customApiUrl && (
+                    <button
+                      type="button"
+                      onClick={() => handleApplyApiUrl('')}
+                      className="px-2.5 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 text-xs rounded-lg cursor-pointer whitespace-nowrap"
+                      title="Kembalikan ke default terintegrasi"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+                {apiUrlMsg && (
+                  <div className={`p-2 rounded text-[11px] ${apiUrlMsg.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium' : 'bg-red-50 text-red-800'}`}>
+                    {apiUrlMsg.message}
+                  </div>
+                )}
               </div>
             </form>
           )}

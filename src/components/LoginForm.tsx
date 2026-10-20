@@ -35,7 +35,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onOpenPublicVerify }) => {
   } = usePPDI();
 
   const [username, setUsername] = useState('superadmin');
-  const [password, setPassword] = useState('Polisi-123');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -192,21 +192,24 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onOpenPublicVerify }) => {
               </div>
               <div>
                 <div className="font-bold text-sm text-red-200 flex flex-wrap items-center gap-2">
-                  <span>Database MySQL Belum Tersambung di Hosting</span>
+                  <span>
+                    {dbStatus?.code === 'HTTP_404' || dbStatus?.error?.includes('404')
+                      ? 'Server Backend Node.js Belum Berjalan (404)'
+                      : 'Database MySQL Belum Tersambung'}
+                  </span>
                   {dbStatus?.code && (
                     <span className="font-mono text-[10px] bg-red-900 px-2 py-0.5 rounded text-red-200 border border-red-700">
                       {dbStatus.code}
                     </span>
                   )}
                   <span className="text-[11px] font-mono text-red-300/80">
-                    ({dbStatus?.host || '103.125.180.59'}:3306)
+                    ({dbStatus?.host ? `${dbStatus.host}:${dbStatus.port || 3306}` : 'Port 3000 / 3306'})
                   </span>
                 </div>
                 <p className="text-xs text-red-100/90 mt-1 max-w-3xl leading-relaxed">
-                  {dbStatus?.diagnosis || 'Aplikasi tidak dapat menghubungi port 3306 server database.'}{' '}
-                  {dbStatus?.code === 'ETIMEDOUT'
-                    ? 'Kemungkinan port 3306 diblokir firewall cPanel server database. Masuk cPanel > Remote MySQL dan tambahkan IP hosting atau "%".'
-                    : 'Pastikan file .env sudah diunggah di root hosting dan kredensial MySQL sudah benar.'}
+                  {dbStatus?.diagnosis || (dbStatus?.code === 'HTTP_404' || dbStatus?.error?.includes('404')
+                    ? 'Setelah "npm run build", backend Express harus dijalankan: jalankan "npm start" (atau "node server.js") di terminal lalu buka http://localhost:3000.'
+                    : 'Aplikasi tidak dapat menghubungi database MySQL.')}
                 </p>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import { Anggota, RiwayatJabatan, KeanggotaanPPDI, IuranAnggota, UserAccount } from '../types/ppdi';
 
-// Seluruh data anggota, riwayat jabatan, keanggotaan KTA, dan iuran dimuat langsung secara live dari database MySQL serverapp_db_anggota
+// Seluruh data anggota, riwayat jabatan, keanggotaan KTA, dan iuran dimuat langsung secara live dari database MySQL
 export const INITIAL_ANGGOTA: Anggota[] = [];
 export const INITIAL_RIWAYAT_JABATAN: RiwayatJabatan[] = [];
 export const INITIAL_KEANGGOTAAN_PPDI: KeanggotaanPPDI[] = [];

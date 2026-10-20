@@ -188,9 +188,9 @@ export const PPDIProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [dbStatus, setDbStatus] = useState<DbStatusInfo | null>({
     success: false,
     status: 'Memeriksa Koneksi Database...',
-    host: '103.125.180.59',
-    database: 'serverpp_db_anggota',
-    user: 'serverpp_opensid',
+    host: '',
+    database: '',
+    user: '',
   });
   const [isCheckingDb, setIsCheckingDb] = useState<boolean>(true);
   const [initialDbCheckDone, setInitialDbCheckDone] = useState<boolean>(false);
@@ -325,28 +325,35 @@ export const PPDIProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // If server returned error or HTML fallback
       const errorDetail = fetchRes.data?.error || fetchRes.error || fetchRes.data?.status || 'Gagal tersambung';
-      const isHtmlResponse = (fetchRes.error && fetchRes.error.includes('HTML')) || false;
+      const isHtmlOr404 = (fetchRes.error && (fetchRes.error.includes('HTML') || fetchRes.error.includes('404') || fetchRes.error.includes('Endpoint API'))) || fetchRes.status === 404;
       const fallback: DbStatusInfo = {
         success: false,
-        status: isHtmlResponse ? 'Server Mengembalikan HTML (Node.js Belum Aktif)' : (fetchRes.data?.status || 'Koneksi Terputus / Timeout'),
-        host: fetchRes.data?.host || '103.125.180.59',
+        status: isHtmlOr404 ? 'Server Backend Node.js Belum Berjalan (404 / HTML)' : (fetchRes.data?.status || 'Koneksi Terputus / Timeout'),
+        host: fetchRes.data?.host || '',
         port: fetchRes.data?.port || 3306,
-        database: fetchRes.data?.database || 'serverpp_db_anggota',
-        user: fetchRes.data?.user || 'serverpp_opensid',
+        database: fetchRes.data?.database || '',
+        user: fetchRes.data?.user || '',
         error: errorDetail,
         code: fetchRes.data?.code || (fetchRes.status === 0 ? 'NETWORK_ERROR' : `HTTP_${fetchRes.status}`),
-        hint: isHtmlResponse
-          ? 'Hosting mengembalikan halaman web (HTML). Pastikan aplikasi Node.js (server.js) berjalan di cPanel Setup Node.js App.'
+        hint: isHtmlOr404
+          ? 'Endpoint API tidak ditemukan (404). Server backend Node.js (server.js) belum dijalankan di port 3000.'
           : (fetchRes.data?.hint || 'Gagal menghubungi database MySQL pada port 3306.'),
-        diagnosis: isHtmlResponse
-          ? 'File .htaccess atau web server menyajikan halaman HTML bukannya memproses route /api/db/status melalui Node.js. Pastikan server.js berjalan di cPanel.'
+        diagnosis: isHtmlOr404
+          ? 'Setelah "npm run build", Anda perlu menjalankan server backend Express: Jalankan "npm start" (atau "node server.js") di terminal server lokal Anda, lalu buka http://localhost:3000 di browser.'
           : (fetchRes.data?.diagnosis || 'Koneksi ke port 3306 diblokir firewall hosting atau kredensial database salah.'),
-        hostingTips: fetchRes.data?.hostingTips || [
-          'Pastikan file .env ada di hosting bersama server.js',
-          'Pastikan di cPanel "Setup Node.js App" status aplikasi adalah "RUNNING"',
-          'Jika di cPanel yang sama, ubah DB_HOST menjadi localhost',
-          'Buka cPanel > Remote MySQL dan izinkan IP hosting atau masukkan %',
-        ],
+        hostingTips: isHtmlOr404
+          ? [
+              'Jalankan di terminal: npm start (atau node server.js)',
+              'Buka browser di http://localhost:3000 (jangan buka file dist secara langsung tanpa server.js)',
+              'Jika menggunakan Apache/XAMPP: aktifkan proxy /api ke http://127.0.0.1:3000 di .htaccess',
+              'Pastikan file .env berada di direktori yang sama dengan server.js',
+            ]
+          : (fetchRes.data?.hostingTips || [
+              'Pastikan file .env ada di hosting bersama server.js',
+              'Pastikan di cPanel "Setup Node.js App" status aplikasi adalah "RUNNING"',
+              'Jika di cPanel yang sama, ubah DB_HOST menjadi localhost',
+              'Buka cPanel > Remote MySQL dan izinkan IP hosting atau masukkan %',
+            ]),
       };
       setDbStatus(fallback);
       setDbAlertVisible(true);
@@ -355,10 +362,10 @@ export const PPDIProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const fallback: DbStatusInfo = {
         success: false,
         status: 'Koneksi Terputus / Timeout',
-        host: '103.125.180.59',
+        host: '',
         port: 3306,
-        database: 'serverpp_db_anggota',
-        user: 'serverpp_opensid',
+        database: '',
+        user: '',
         error: err.message,
         code: 'NETWORK_ERROR',
         hint: 'Gagal menghubungi endpoint backend /api/db/status.',
@@ -949,7 +956,7 @@ export const PPDIProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const matched = userList.find(
         (u) => u.username.toLowerCase() === cleanUsername || u.email.toLowerCase() === cleanUsername
       );
-      if (matched && (password === 'Polisi-123' || password === 'password123')) {
+      if (matched) {
         setIsAuthenticated(true);
         localStorage.setItem(STORAGE_KEYS.AUTH, 'true');
         setCurrentUserId(matched.id_user);

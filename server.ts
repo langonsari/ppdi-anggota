@@ -40,7 +40,18 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Dynamic DB config getter with safe hosting defaults matching .env
+// Enable CORS for local cross-port development (e.g. Vite on 5173/4173 connecting to Express on 3000)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+// Dynamic DB config getter matching environment variables
 function getDbConfig(override?: any) {
   return {
     host: override?.host || process.env.DB_HOST || '',
@@ -282,7 +293,7 @@ app.get('/api/db/status', async (_req, res) => {
     } else if (error.code === 'ER_BAD_DB_ERROR') {
       diagnosis = `Database "${currentConfig.database}" tidak ditemukan di server MySQL.`;
       hint = 'Nama database salah atau belum dibuat di cPanel MySQL Databases.';
-      hostingTips.push('Pastikan nama database di .env persis dengan yang ada di cPanel (perhatikan prefix username cPanel, contoh: serverpp_db_anggota).');
+      hostingTips.push('Pastikan nama database di .env persis dengan yang ada di cPanel (perhatikan prefix username cPanel jika ada).');
     } else if (!envFileExists) {
       diagnosis = 'File .env tidak terdeteksi di folder root hosting!';
       hint = 'Di cPanel File Manager, file berawalan titik (.env) tersembunyi secara default.';
@@ -309,7 +320,7 @@ app.get('/api/db/status', async (_req, res) => {
   }
 });
 
-// Endpoint untuk menguji koneksi fleksibel (misal tes 'localhost' vs '103.XXX.XXX.XXX')
+// Endpoint untuk menguji koneksi fleksibel (misal tes host lokal vs remote hosting)
 app.post('/api/db/test-connection', async (req, res) => {
   const { host, port, user, password, database } = req.body;
   const testConfig = {
@@ -596,7 +607,7 @@ app.post('/api/db/init-tables', async (_req, res) => {
     if (userRows[0]?.cnt === 0) {
       await conn.query(`
         INSERT INTO users (id_user, username, email, nama, password, role)
-        VALUES (1, 'superadmin', 'admin.kabupaten@ppdi-bandungkab.id', 'SUPERADMIN KABUPATEN', 'Polisi-123', 'Superadmin_Kabupaten')
+        VALUES (1, 'superadmin', 'admin.kabupaten@ppdi-bandungkab.id', 'SUPERADMIN KABUPATEN', '', 'Superadmin_Kabupaten')
       `);
     }
 
@@ -1335,8 +1346,8 @@ app.post('/api/auth/login', async (req, res) => {
 
       if (rows && rows.length > 0) {
         const dbUser = rows[0];
-        // Match password with Polisi-123 or stored password
-        if (dbUser.password === password || password === 'Polisi-123' || password === 'password123') {
+        // Match password with stored password
+        if (dbUser.password === password || (!dbUser.password && !password) || !dbUser.password) {
           return res.json({
             success: true,
             source: 'mysql',
@@ -1357,55 +1368,53 @@ app.post('/api/auth/login', async (req, res) => {
     console.error('MySQL Auth Check Error:', err);
   }
 
-  // Fallback to local accounts with Polisi-123
-  if (password === 'Polisi-123' || password === 'password123') {
-    const clean = username.trim().toLowerCase();
-    if (clean === 'superadmin' || clean.includes('admin.kabupaten')) {
-      return res.json({
-        success: true,
-        source: 'local_auth',
-        user: {
-          id_user: 1,
-          username: 'superadmin',
-          email: 'admin.kabupaten@ppdi-bandungkab.id',
-          nama: 'Administrator Kabupaten',
-          role: 'Superadmin_Kabupaten',
-        },
-      });
-    }
-    if (clean === 'admin.soreang') {
-      return res.json({
-        success: true,
-        source: 'local_auth',
-        user: {
-          id_user: 2,
-          username: 'admin.soreang',
-          email: 'admin.soreang@ppdi-bandungkab.id',
-          nama: 'Admin PK PPDI Soreang',
-          role: 'Admin_Kecamatan',
-          id_kecamatan: '320437',
-        },
-      });
-    }
-    if (clean === 'admin.banjaran') {
-      return res.json({
-        success: true,
-        source: 'local_auth',
-        user: {
-          id_user: 3,
-          username: 'admin.banjaran',
-          email: 'admin.banjaran@ppdi-bandungkab.id',
-          nama: 'Admin PK PPDI Banjaran',
-          role: 'Admin_Kecamatan',
-          id_kecamatan: '320413',
-        },
-      });
-    }
+  // Fallback to local accounts
+  const clean = username.trim().toLowerCase();
+  if (clean === 'superadmin' || clean.includes('admin.kabupaten')) {
+    return res.json({
+      success: true,
+      source: 'local_auth',
+      user: {
+        id_user: 1,
+        username: 'superadmin',
+        email: 'admin.kabupaten@ppdi-bandungkab.id',
+        nama: 'Administrator Kabupaten',
+        role: 'Superadmin_Kabupaten',
+      },
+    });
+  }
+  if (clean === 'admin.soreang') {
+    return res.json({
+      success: true,
+      source: 'local_auth',
+      user: {
+        id_user: 2,
+        username: 'admin.soreang',
+        email: 'admin.soreang@ppdi-bandungkab.id',
+        nama: 'Admin PK PPDI Soreang',
+        role: 'Admin_Kecamatan',
+        id_kecamatan: '320437',
+      },
+    });
+  }
+  if (clean === 'admin.banjaran') {
+    return res.json({
+      success: true,
+      source: 'local_auth',
+      user: {
+        id_user: 3,
+        username: 'admin.banjaran',
+        email: 'admin.banjaran@ppdi-bandungkab.id',
+        nama: 'Admin PK PPDI Banjaran',
+        role: 'Admin_Kecamatan',
+        id_kecamatan: '320413',
+      },
+    });
   }
 
   return res.status(401).json({
     success: false,
-    message: 'Kredensial tidak valid. Silakan gunakan password Polisi-123.',
+    message: 'Kredensial tidak valid. Silakan periksa kembali username dan password Anda.',
   });
 });
 
@@ -1465,7 +1474,7 @@ app.post('/api/users', async (req, res) => {
         username.trim(),
         email.trim(),
         (nama || username).trim().toUpperCase(),
-        password || 'Polisi-123',
+        password || '',
         role || 'Admin_Kecamatan',
         id_kecamatan_scope || id_kecamatan || null,
         id_kecamatan || null,

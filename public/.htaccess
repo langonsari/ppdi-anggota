@@ -3,12 +3,20 @@
 # Mencegah error "Unexpected token '<', <!doctype... is not valid JSON"
 # ====================================================================
 
+# Proxy API and uploads to Node.js backend on port 3000 if mod_proxy is enabled
+<IfModule mod_proxy.c>
+  ProxyPreserveHost On
+  ProxyPass /api http://127.0.0.1:3000/api
+  ProxyPassReverse /api http://127.0.0.1:3000/api
+  ProxyPass /uploads http://127.0.0.1:3000/uploads
+  ProxyPassReverse /uploads http://127.0.0.1:3000/uploads
+</IfModule>
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
   # 1. JANGAN rewrite request API (/api/*) ke index.html
-  # Ini mencegah server mengembalikan dokumen HTML ketika endpoint API dipanggil
   RewriteCond %{REQUEST_URI} ^/api(/.*)?$ [NC]
   RewriteRule ^ - [L]
 

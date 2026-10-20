@@ -44,7 +44,7 @@ export const UserSettingsView: React.FC = () => {
     setUsername('');
     setNama('');
     setEmail('');
-    setPassword('Polisi-123');
+    setPassword('');
     setRole('Admin_Kecamatan');
     setIdKecamatan(kecamatanList[0]?.id_kecamatan || '320437');
     setIdDesa(desaList[0]?.id_desa || '');
@@ -561,7 +561,7 @@ export const UserSettingsView: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  placeholder={editingUser ? '•••••••• (Biarkan kosong)' : 'Masukkan password baru (default: Polisi-123)'}
+                  placeholder={editingUser ? '•••••••• (Biarkan kosong)' : 'Masukkan password pengguna'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full p-2.5 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#064E3B] outline-none text-neutral-900 font-mono"

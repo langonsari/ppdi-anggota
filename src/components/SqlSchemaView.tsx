@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { usePPDI } from '../context/PPDIContext';
 import {
   MYSQL_SCHEMA_SQL,
   LARAVEL_MIGRATION_CODE,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 
 export const SqlSchemaView: React.FC = () => {
+  const { dbStatus } = usePPDI();
   const [activeTab, setActiveTab] = useState<'mysql' | 'views' | 'laravel' | 'ci4' | 'erd'>('mysql');
   const [copied, setCopied] = useState(false);
 
@@ -70,13 +72,15 @@ export const SqlSchemaView: React.FC = () => {
             </div>
             <div>
               <div className="font-bold text-sm text-white">Konfigurasi Database MySQL Server Terpasang</div>
-              <div className="text-[11px] text-emerald-300 font-mono">103.125.180.59:3306 &rarr; serverapp_db_anggota</div>
+              <div className="text-[11px] text-emerald-300 font-mono">
+                {dbStatus?.host ? `${dbStatus.host}:${dbStatus.port || 3306}` : 'localhost:3306'} &rarr; {dbStatus?.database || 'MySQL Database'}
+              </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 text-xs">
             <span className="px-2.5 py-0.5 rounded bg-emerald-900 border border-emerald-700 text-amber-300 font-semibold font-mono">
-              User: serverpp_opensid
+              User: {dbStatus?.user || '-'}
             </span>
           </div>
         </div>
@@ -84,19 +88,19 @@ export const SqlSchemaView: React.FC = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
           <div className="bg-emerald-900/50 p-2.5 rounded-lg border border-emerald-800/60">
             <span className="text-[10px] text-emerald-400 block font-sans">URL / IP Server</span>
-            <span className="font-semibold text-white">103.125.180.59</span>
+            <span className="font-semibold text-white">{dbStatus?.host || 'localhost'}</span>
           </div>
           <div className="bg-emerald-900/50 p-2.5 rounded-lg border border-emerald-800/60">
             <span className="text-[10px] text-emerald-400 block font-sans">Database</span>
-            <span className="font-semibold text-amber-300">serverapp_db_anggota</span>
+            <span className="font-semibold text-amber-300">{dbStatus?.database || '-'}</span>
           </div>
           <div className="bg-emerald-900/50 p-2.5 rounded-lg border border-emerald-800/60">
             <span className="text-[10px] text-emerald-400 block font-sans">User MySQL</span>
-            <span className="font-semibold text-white">serverpp_opensid</span>
+            <span className="font-semibold text-white">{dbStatus?.user || '-'}</span>
           </div>
           <div className="bg-emerald-900/50 p-2.5 rounded-lg border border-emerald-800/60">
-            <span className="text-[10px] text-emerald-400 block font-sans">Password</span>
-            <span className="font-semibold text-emerald-200">Polisi-123</span>
+            <span className="text-[10px] text-emerald-400 block font-sans">Port</span>
+            <span className="font-semibold text-emerald-200">{dbStatus?.port || 3306}</span>
           </div>
         </div>
 
