@@ -154,6 +154,9 @@ const DEFAULT_SETTINGS: AppSettings = {
       'arsip': { view: true, add: true, edit: true, delete: true },
       'iuran': { view: true, add: true, edit: true, delete: true },
       'settings-user': { view: true, add: true, edit: true, delete: true },
+      'settings-app': { view: false, add: false, edit: false, delete: false },
+      'settings-db': { view: false, add: false, edit: false, delete: false },
+      'skema': { view: false, add: false, edit: false, delete: false },
     },
   },
 };

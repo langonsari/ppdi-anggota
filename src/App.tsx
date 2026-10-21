@@ -31,6 +31,7 @@ const MainAppContent: React.FC = () => {
     dbStatus,
     isCheckingDb,
     checkDbStatus,
+    currentUser,
   } = usePPDI();
 
   // Modal states

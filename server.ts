@@ -557,6 +557,24 @@ app.post('/api/db/init-tables', async (_req, res) => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    // Role Pengguna
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS \`roles\` (
+        \`id_role\` INT AUTO_INCREMENT NOT NULL,
+        \`nama_role\` VARCHAR(50) NOT NULL,
+        PRIMARY KEY (\`id_role\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Group Pengguna
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS \`user_groups\` (
+        \`id_group\` INT AUTO_INCREMENT NOT NULL,
+        \`nama_group\` VARCHAR(50) NOT NULL,
+        PRIMARY KEY (\`id_group\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
     // 8. users
     await conn.query(`
       CREATE TABLE IF NOT EXISTS \`users\` (
