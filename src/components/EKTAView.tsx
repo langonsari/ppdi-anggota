@@ -362,7 +362,7 @@ export const EKTAView: React.FC<EKTAViewProps> = ({ selectedMemberId, onOpenVeri
                       <div className="text-emerald-200">Ketua Pengurus Daerah</div>
                       <div className="text-[7px] text-amber-300 font-mono tracking-wider">[TTD & CAP RESMI]</div>
                       <div className="font-bold text-amber-300 text-[9px] mt-0.5">
-                        Drs. H. Dedi Kusnadi, M.Si
+                        Dadang Iyas, S.Ip.
                       </div>
                     </div>
                   </div>

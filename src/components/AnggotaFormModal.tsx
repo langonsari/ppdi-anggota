@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { usePPDI } from '../context/PPDIContext';
 import { Anggota, AnggotaFullDetail, RiwayatJabatan, StatusAktifJabatan } from '../types/ppdi';
-import { calculateAgeAndRetirement, generateNextKTA, formatDateIndo, safeFetchJson } from '../utils/ppdiHelpers';
+import { calculateAgeAndRetirement, generateNextKTA, generateNIPD, formatDateIndo, safeFetchJson } from '../utils/ppdiHelpers';
 import {
   X,
   Save,
@@ -293,6 +293,18 @@ export const AnggotaFormModal: React.FC<AnggotaFormModalProps> = ({
     return generateNextKTA(selectedKec, selectedDesa, keanggotaanList);
   }, [selectedKec, selectedDesa, keanggotaanList, editMember]);
 
+  // Projected 28-digit NIPD
+  const projectedNiap = useMemo(() => {
+    return generateNIPD({
+      tanggalLahir,
+      tmtJabatan,
+      jenisKelamin,
+      idJabatan: selectedJabatan,
+      idKecamatan: selectedKec,
+      idDesa: selectedDesa,
+    });
+  }, [tanggalLahir, tmtJabatan, jenisKelamin, selectedJabatan, selectedKec, selectedDesa]);
+
   // Member's existing career history
   const memberCareerHistory = useMemo(() => {
     if (!editMember) return [];
@@ -514,6 +526,7 @@ export const AnggotaFormModal: React.FC<AnggotaFormModalProps> = ({
     }
 
     const effectiveNoSk = noSk.trim() || `141.1/Kep.${Math.floor(Math.random() * 80 + 10)}-Desa/${new Date().getFullYear()}`;
+    const effectiveNiap = niap.trim() || projectedNiap;
 
     try {
       setIsSubmitting(true);
@@ -523,7 +536,7 @@ export const AnggotaFormModal: React.FC<AnggotaFormModalProps> = ({
         // Update existing member details
         await updateAnggota(editMember.anggota.id_anggota, {
           nik,
-          niap_nipd: niap || undefined,
+          niap_nipd: effectiveNiap,
           nama_lengkap: namaLengkap.trim().toUpperCase(),
           gelar_depan: gelarDepan ? gelarDepan.trim() : undefined,
           gelar_belakang: gelarBelakang ? gelarBelakang.trim() : undefined,
@@ -557,7 +570,7 @@ export const AnggotaFormModal: React.FC<AnggotaFormModalProps> = ({
         const result = await addAnggotaWithJobAndKta(
           {
             nik,
-            niap_nipd: niap || undefined,
+            niap_nipd: effectiveNiap,
             nama_lengkap: namaLengkap.trim().toUpperCase(),
             gelar_depan: gelarDepan ? gelarDepan.trim() : undefined,
             gelar_belakang: gelarBelakang ? gelarBelakang.trim() : undefined,
@@ -940,16 +953,28 @@ export const AnggotaFormModal: React.FC<AnggotaFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-neutral-700 font-medium mb-1">
-                    NIAP / NIPD (Nomor Induk Perangkat Desa)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-neutral-700 font-medium">
+                      NIAP / NIPD (28 Digit Sesuai Ketentuan)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setNiap(projectedNiap)}
+                      className="text-[11px] font-mono text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 transition-colors"
+                    >
+                      Generate 28-Digit NIPD
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={niap}
                     onChange={(e) => setNiap(e.target.value)}
-                    placeholder="19850515.2010.003"
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg font-mono focus:outline-hidden focus:ring-1 focus:ring-emerald-700"
+                    placeholder={projectedNiap}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg font-mono focus:outline-hidden focus:ring-1 focus:ring-emerald-700 text-xs"
                   />
+                  <span className="text-[10px] text-neutral-500 font-mono mt-1 block">
+                    * Kosongkan untuk otomatis dibentuk 28 digit (8 digit Lahir + 6 digit TMT + 1 digit JK + 2 digit Perangkat + 1 digit Jabatan + 10 digit Wilayah).
+                  </span>
                 </div>
 
                 <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-2">

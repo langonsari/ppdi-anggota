@@ -245,6 +245,85 @@ export function generateNextKTA(
   return `32.04.${kecCode}.${desaCode}.${numStr}`;
 }
 
+/**
+ * Generates official 28-digit NIPD (Nomor Induk Perangkat Desa) based on statutory rules:
+ * - 8 digits: Birth Date (YYYYMMDD)
+ * - 6 digits: Appointment / TMT Date (YYYYMM)
+ * - 1 digit: Gender (1 = Male, 2 = Female)
+ * - 2 digits: Device code ("02")
+ * - 1 digit: Position code (1 = Sekdes, 2 = Kasi, 3 = Kaur, 4 = Kewilayahan)
+ * - 10 digits: Regional code (3204 + 2 digit Kec + 4 digit Desa)
+ */
+export function generateNIPD(params: {
+  tanggalLahir?: string;
+  tmtJabatan?: string;
+  jenisKelamin?: 'L' | 'P' | string;
+  idJabatan?: number | string;
+  idKecamatan?: string;
+  idDesa?: string;
+}): string {
+  let lahirStr = '19900101';
+  if (params.tanggalLahir) {
+    const cleanLahir = params.tanggalLahir.replace(/[^0-9]/g, '');
+    if (cleanLahir.length >= 8) {
+      lahirStr = cleanLahir.slice(0, 8);
+    } else if (cleanLahir.length === 6) {
+      lahirStr = cleanLahir + '01';
+    }
+  }
+
+  let tmtStr = '202001';
+  if (params.tmtJabatan) {
+    const cleanTmt = params.tmtJabatan.replace(/[^0-9]/g, '');
+    if (cleanTmt.length >= 6) {
+      tmtStr = cleanTmt.slice(0, 6);
+    } else if (cleanTmt.length >= 4) {
+      tmtStr = cleanTmt.slice(0, 4) + '01';
+    }
+  }
+
+  const jk = (params.jenisKelamin || 'L').toUpperCase();
+  const jkCode = (jk === 'P' || jk === 'PEREMPUAN') ? '2' : '1';
+
+  const devCode = '02';
+
+  let jabCode = '2';
+  const jId = Number(params.idJabatan) || 2;
+  if (jId === 1) jabCode = '1';
+  else if (jId === 2) jabCode = '2';
+  else if (jId === 3) jabCode = '3';
+  else if (jId === 4) jabCode = '4';
+  else jabCode = '2';
+
+  let kecCode = '01';
+  if (params.idKecamatan) {
+    const cleanKec = params.idKecamatan.replace(/\./g, '').trim();
+    if (cleanKec.length >= 6) {
+      kecCode = cleanKec.slice(4, 6);
+    } else if (cleanKec.length >= 2) {
+      kecCode = cleanKec.slice(-2);
+    } else {
+      kecCode = cleanKec.padStart(2, '0');
+    }
+  }
+
+  let desaCode = '0001';
+  if (params.idDesa) {
+    const cleanDesa = params.idDesa.replace(/\./g, '').trim();
+    if (cleanDesa.length >= 10) {
+      desaCode = cleanDesa.slice(6, 10);
+    } else if (cleanDesa.length >= 4) {
+      desaCode = cleanDesa.slice(-4);
+    } else {
+      desaCode = cleanDesa.padStart(4, '0');
+    }
+  }
+
+  const wilayahCode = `3204${kecCode}${desaCode}`;
+
+  return `${lahirStr}${tmtStr}${jkCode}${devCode}${jabCode}${wilayahCode}`;
+}
+
 // Storage key for user-configured API Base URL
 const API_BASE_URL_KEY = 'ppdi_custom_api_url';
 

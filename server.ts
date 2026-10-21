@@ -748,6 +748,60 @@ async function resolveDesaId(conn: any, rawIdDesa: any, rawNamaDesa?: string): P
   return anyDesa.length > 0 ? anyDesa[0].id_desa : '3204052001';
 }
 
+function generateServerNIPD(params: {
+  tanggal_lahir?: string;
+  tmt_jabatan?: string;
+  jenis_kelamin?: string;
+  id_jabatan?: any;
+  id_kecamatan?: string;
+  id_desa?: string;
+}): string {
+  let lahirStr = '19900101';
+  if (params.tanggal_lahir) {
+    const clean = String(params.tanggal_lahir).replace(/[^0-9]/g, '');
+    if (clean.length >= 8) lahirStr = clean.slice(0, 8);
+    else if (clean.length === 6) lahirStr = clean + '01';
+  }
+
+  let tmtStr = '202001';
+  if (params.tmt_jabatan) {
+    const cleanTmt = String(params.tmt_jabatan).replace(/[^0-9]/g, '');
+    if (cleanTmt.length >= 6) tmtStr = cleanTmt.slice(0, 6);
+    else if (cleanTmt.length >= 4) tmtStr = cleanTmt.slice(0, 4) + '01';
+  }
+
+  const jk = (params.jenis_kelamin || 'L').toUpperCase();
+  const jkCode = (jk === 'P' || jk === 'PEREMPUAN') ? '2' : '1';
+  const devCode = '02';
+
+  let jabCode = '2';
+  const jId = Number(params.id_jabatan) || 2;
+  if (jId === 1) jabCode = '1';
+  else if (jId === 2) jabCode = '2';
+  else if (jId === 3) jabCode = '3';
+  else if (jId === 4) jabCode = '4';
+  else jabCode = '2';
+
+  let kecCode = '01';
+  if (params.id_kecamatan) {
+    const cleanKec = String(params.id_kecamatan).replace(/\./g, '').trim();
+    if (cleanKec.length >= 6) kecCode = cleanKec.slice(4, 6);
+    else if (cleanKec.length >= 2) kecCode = cleanKec.slice(-2);
+    else kecCode = cleanKec.padStart(2, '0');
+  }
+
+  let desaCode = '0001';
+  if (params.id_desa) {
+    const cleanDesa = String(params.id_desa).replace(/\./g, '').trim();
+    if (cleanDesa.length >= 10) desaCode = cleanDesa.slice(6, 10);
+    else if (cleanDesa.length >= 4) desaCode = cleanDesa.slice(-4);
+    else desaCode = cleanDesa.padStart(4, '0');
+  }
+
+  const wilayahCode = `3204${kecCode}${desaCode}`;
+  return `${lahirStr}${tmtStr}${jkCode}${devCode}${jabCode}${wilayahCode}`;
+}
+
 // Add Member with Unique NIK enforcement & Safe Desa FK
 app.post('/api/anggota', async (req, res) => {
   const { anggota, riwayat, keanggotaan } = req.body;
@@ -778,7 +832,15 @@ app.post('/api/anggota', async (req, res) => {
     const newIdAnggota = (anggota.id_anggota && anggota.id_anggota.length > 10) ? String(anggota.id_anggota) : crypto.randomUUID();
     const newIdRiwayat = crypto.randomUUID();
     const newIdPpdi = crypto.randomUUID();
-    const nipdValue = anggota.niap_nipd || anggota.niap || `NIPD.${anggota.nik.slice(-6)}`;
+
+    const nipdValue = anggota.niap_nipd || anggota.niap || generateServerNIPD({
+      tanggal_lahir: anggota.tanggal_lahir,
+      tmt_jabatan: riwayat?.tmt_jabatan,
+      jenis_kelamin: anggota.jenis_kelamin,
+      id_jabatan: riwayat?.id_jabatan,
+      id_kecamatan: riwayat?.id_kecamatan,
+      id_desa: riwayat?.id_desa,
+    });
 
     // 1. Insert into anggota
     await conn.query(
