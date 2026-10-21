@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import {
   X,
   Upload,
@@ -83,102 +83,35 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   }, [anggotaList]);
 
   // Handle template download
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Template Anggota PPDI');
+
     const headers = [
-      'NIK',
-      'Nama Lengkap',
-      'Gelar Depan',
-      'Gelar Belakang',
-      'Tempat Lahir',
-      'Tanggal Lahir',
-      'Jenis Kelamin',
-      'Agama',
-      'Pendidikan Terakhir',
-      'Nomor WhatsApp',
-      'Email',
-      'Alamat Rumah',
-      'Kecamatan',
-      'Desa',
-      'Jabatan',
-      'Nomor SK',
-      'Tanggal SK',
-      'TMT Jabatan',
-      'Jabatan Pengurus PPDI',
+      'NIK', 'Nama Lengkap', 'Gelar Depan', 'Gelar Belakang', 'Tempat Lahir',
+      'Tanggal Lahir', 'Jenis Kelamin', 'Agama', 'Pendidikan Terakhir',
+      'Nomor WhatsApp', 'Email', 'Alamat Rumah', 'Kecamatan', 'Desa',
+      'Jabatan', 'Nomor SK', 'Tanggal SK', 'TMT Jabatan', 'Jabatan Pengurus PPDI',
     ];
+
+    worksheet.columns = headers.map(header => ({ header, key: header, width: 22 }));
 
     const sampleRows = [
-      [
-        '3204051203850011',
-        'Asep Hidayat',
-        'H.',
-        'S.AP',
-        'Bandung',
-        '1985-03-12',
-        'L',
-        'Islam',
-        'S1',
-        '081223344551',
-        'asep.hidayat@desa.id',
-        'Jl. Raya Soreang No. 12 RT 02/03',
-        'SOREANG',
-        'PAMEKARAN',
-        'Sekretaris Desa',
-        '141.1/Kep.05-Desa/2023',
-        '2023-01-10',
-        '2023-02-01',
-        'Anggota Biasa',
-      ],
-      [
-        '3204162005900022',
-        'Siti Rahmawati',
-        '',
-        'S.E',
-        'Bandung',
-        '1990-05-20',
-        'P',
-        'Islam',
-        'S1',
-        '085721889933',
-        'siti.rahmawati@desa.id',
-        'Kp. Ranca Manyar RT 01/05',
-        'BALEENDAH',
-        'ARJASARI',
-        'Kaur Keuangan',
-        '141.1/Kep.12-Desa/2024',
-        '2024-02-15',
-        '2024-03-01',
-        'Anggota Biasa',
-      ],
-      [
-        '3204131508920033',
-        'Dedi Kusnadi',
-        '',
-        'S.IP',
-        'Bandung',
-        '1992-08-15',
-        'L',
-        'Islam',
-        'S1',
-        '087822991155',
-        'dedi.kusnadi@desa.id',
-        'Jl. Sindangreret No. 45 Banjaran',
-        'BANJARAN',
-        'BANJARAN',
-        'Kasi Pemerintahan',
-        '141.1/Kep.08-Desa/2023',
-        '2023-05-10',
-        '2023-06-01',
-        'Ketua Pengurus Kecamatan',
-      ],
+      ['3204051203850011', 'Asep Hidayat', 'H.', 'S.AP', 'Bandung', '1985-03-12', 'L', 'Islam', 'S1', '081223344551', 'asep.hidayat@desa.id', 'Jl. Raya Soreang No. 12 RT 02/03', 'SOREANG', 'PAMEKARAN', 'Sekretaris Desa', '141.1/Kep.05-Desa/2023', '2023-01-10', '2023-02-01', 'Anggota Biasa'],
+      ['3204162005900022', 'Siti Rahmawati', '', 'S.E', 'Bandung', '1990-05-20', 'P', 'Islam', 'S1', '085721889933', 'siti.rahmawati@desa.id', 'Kp. Ranca Manyar RT 01/05', 'BALEENDAH', 'ARJASARI', 'Kaur Keuangan', '141.1/Kep.12-Desa/2024', '2024-02-15', '2024-03-01', 'Anggota Biasa'],
+      ['3204131508920033', 'Dedi Kusnadi', '', 'S.IP', 'Bandung', '1992-08-15', 'L', 'Islam', 'S1', '087822991155', 'dedi.kusnadi@desa.id', 'Jl. Sindangreret No. 45 Banjaran', 'BANJARAN', 'BANJARAN', 'Kasi Pemerintahan', '141.1/Kep.08-Desa/2023', '2023-05-10', '2023-06-01', 'Ketua Pengurus Kecamatan'],
     ];
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
-    // Set auto column widths
-    ws['!cols'] = headers.map(() => ({ wch: 22 }));
+    sampleRows.forEach(row => worksheet.addRow(row));
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Template Anggota PPDI');
-    XLSX.writeFile(wb, `TEMPLATE_IMPORT_ANGGOTA_PPDI_BANDUNG.xlsx`);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'TEMPLATE_IMPORT_ANGGOTA_PPDI_BANDUNG.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Parse uploaded file
@@ -190,20 +123,34 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     setImportResult(null);
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
-        const wsName = wb.SheetNames[0];
-        const ws = wb.Sheets[wsName];
+        const arrayBuffer = evt.target?.result as ArrayBuffer;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.worksheets[0];
+        
+        const jsonData: any[] = [];
+        const headers: string[] = [];
+        
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) {
+            row.eachCell((cell) => headers.push(String(cell.value)));
+          } else {
+            const rowData: any = {};
+            row.eachCell((cell, colNumber) => {
+              rowData[headers[colNumber - 1]] = cell.value;
+            });
+            jsonData.push(rowData);
+          }
+        });
 
-        const jsonData: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
         processParsedData(jsonData);
       } catch (err: any) {
         alert('Gagal membaca file Excel. Pastikan format file .xlsx, .xls, atau .csv');
       }
     };
-    reader.readAsBinaryString(selected);
+    reader.readAsArrayBuffer(selected);
   };
 
   // Normalize column mapping & validate
