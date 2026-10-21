@@ -96,6 +96,7 @@ export interface UserAccount {
   username: string;
   email: string;
   nama: string;
+  password?: string;
   role: UserRole;
   id_anggota?: string;
   id_kecamatan?: string; // For Admin_Kecamatan restriction

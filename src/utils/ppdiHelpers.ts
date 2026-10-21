@@ -420,3 +420,127 @@ export async function safeResponseJson<T = any>(
   }
 }
 
+/**
+ * Default SVG shield favicon in emerald green & gold
+ */
+export function getDefaultFavicon(): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="14" fill="#064E3B"/>
+    <path d="M32 10 L50 18 V32 C50 44 42 52 32 56 C22 52 14 44 14 32 V18 Z" fill="#FDE047" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M32 18 L44 24 V33 C44 41 38 47 32 50 C26 47 20 41 20 33 V24 Z" fill="#064E3B"/>
+    <circle cx="32" cy="33" r="5" fill="#FDE047"/>
+  </svg>`;
+  if (typeof window !== 'undefined' && typeof window.btoa === 'function') {
+    return `data:image/svg+xml;base64,${window.btoa(svg)}`;
+  }
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+/**
+ * Generates a crisp square PNG favicon (64x64) from an image URL / base64
+ */
+export function generateFaviconFromLogo(logoUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    if (!logoUrl) {
+      resolve(getDefaultFavicon());
+      return;
+    }
+
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      resolve(logoUrl);
+      return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(logoUrl);
+          return;
+        }
+
+        ctx.clearRect(0, 0, 64, 64);
+
+        // Calculate aspect-ratio preservation
+        const hRatio = 60 / img.width;
+        const vRatio = 60 / img.height;
+        const ratio = Math.min(hRatio, vRatio);
+        const shiftX = (64 - img.width * ratio) / 2;
+        const shiftY = (64 - img.height * ratio) / 2;
+
+        ctx.drawImage(
+          img,
+          0,
+          0,
+          img.width,
+          img.height,
+          shiftX,
+          shiftY,
+          img.width * ratio,
+          img.height * ratio
+        );
+
+        const dataUrl = canvas.toDataURL('image/png');
+        resolve(dataUrl);
+      } catch (_) {
+        // Fallback to original url if canvas is tainted
+        resolve(logoUrl);
+      }
+    };
+
+    img.onerror = () => {
+      resolve(getDefaultFavicon());
+    };
+
+    img.src = logoUrl;
+  });
+}
+
+/**
+ * Dynamically updates document.title and browser tab favicons
+ */
+export async function updateFaviconAndTitle(logoUrl?: string, title?: string): Promise<void> {
+  if (typeof document === 'undefined') return;
+
+  if (title) {
+    document.title = title;
+  }
+
+  const faviconDataUrl = await generateFaviconFromLogo(logoUrl || '');
+
+  // 1. Rel icon
+  let linkIcon = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+  if (!linkIcon) {
+    linkIcon = document.createElement('link');
+    linkIcon.rel = 'icon';
+    document.head.appendChild(linkIcon);
+  }
+  linkIcon.type = faviconDataUrl.startsWith('data:image/svg') ? 'image/svg+xml' : 'image/png';
+  linkIcon.href = faviconDataUrl;
+
+  // 2. Shortcut icon
+  let linkShortcut = document.querySelector("link[rel='shortcut icon']") as HTMLLinkElement | null;
+  if (!linkShortcut) {
+    linkShortcut = document.createElement('link');
+    linkShortcut.rel = 'shortcut icon';
+    document.head.appendChild(linkShortcut);
+  }
+  linkShortcut.href = faviconDataUrl;
+
+  // 3. Apple touch icon
+  let linkApple = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement | null;
+  if (!linkApple) {
+    linkApple = document.createElement('link');
+    linkApple.rel = 'apple-touch-icon';
+    document.head.appendChild(linkApple);
+  }
+  linkApple.href = faviconDataUrl;
+}
+
+

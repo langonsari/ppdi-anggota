@@ -156,11 +156,33 @@ export const AppSettingsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setLogoUrl('')}
-                  className="mt-3 text-[11px] text-red-600 hover:text-red-700 font-medium cursor-pointer"
+                  className="mt-2 text-[11px] text-red-600 hover:text-red-700 font-medium cursor-pointer"
                 >
                   Reset ke Logo Default
                 </button>
               )}
+
+              {/* Favicon Browser Tab Preview */}
+              <div className="mt-3 p-2 bg-neutral-100 rounded-lg border border-neutral-200 w-full text-left space-y-1">
+                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block">
+                  Favicon & Tab Browser:
+                </span>
+                <div className="flex items-center gap-2 p-1.5 bg-white rounded border border-neutral-200 shadow-xs">
+                  <div className="w-4 h-4 rounded-xs flex items-center justify-center shrink-0 overflow-hidden bg-neutral-50">
+                    {logoUrl ? (
+                      <img src={logoUrl} alt="Favicon" className="w-full h-full object-contain" />
+                    ) : (
+                      <Shield className="w-3.5 h-3.5 text-[#064E3B]" />
+                    )}
+                  </div>
+                  <span className="text-[10px] font-medium text-neutral-800 truncate font-sans">
+                    {appName || 'PPDI KAB. BANDUNG'}
+                  </span>
+                </div>
+                <span className="text-[9px] text-neutral-500 block font-mono">
+                  * Otomatis sinkron ke favicon tab browser
+                </span>
+              </div>
             </div>
 
             {/* Logo Inputs */}

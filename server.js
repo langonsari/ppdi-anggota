@@ -516,11 +516,16 @@ app.post("/api/db/init-tables", async (_req, res) => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     const [userRows] = await conn.query("SELECT COUNT(*) as cnt FROM users");
+    const defaultAdminPass = process.env.ADMIN_PASSWORD || "admin";
     if (userRows[0]?.cnt === 0) {
       await conn.query(`
         INSERT INTO users (id_user, username, email, nama, password, role)
-        VALUES (1, 'superadmin', 'admin.kabupaten@ppdi-bandungkab.id', 'SUPERADMIN KABUPATEN', '', 'Superadmin_Kabupaten')
-      `);
+        VALUES (1, 'superadmin', 'admin.kabupaten@ppdi-bandungkab.id', 'SUPERADMIN KABUPATEN', ?, 'Superadmin_Kabupaten')
+      `, [defaultAdminPass]);
+    } else {
+      await conn.query(`
+        UPDATE users SET password = ? WHERE username = 'superadmin' AND (password = '' OR password IS NULL)
+      `, [defaultAdminPass]);
     }
     await conn.query("SET FOREIGN_KEY_CHECKS = 1");
     conn.release();
@@ -1144,66 +1149,77 @@ app.post("/api/auth/login", async (req, res) => {
       conn.release();
       if (rows && rows.length > 0) {
         const dbUser = rows[0];
-        if (dbUser.password === password || !dbUser.password && !password || !dbUser.password) {
-          return res.json({
-            success: true,
-            source: "mysql",
-            user: {
-              id_user: dbUser.id_user,
-              username: dbUser.username,
-              email: dbUser.email,
-              nama: dbUser.nama_lengkap || dbUser.username,
-              role: dbUser.role,
-              id_anggota: dbUser.id_anggota ? String(dbUser.id_anggota) : void 0,
-              id_kecamatan: dbUser.id_kecamatan_scope || void 0
-            }
+        if (!dbUser.password || dbUser.password !== String(password).trim()) {
+          return res.status(401).json({
+            success: false,
+            message: "Password yang Anda masukkan salah. Silakan periksa kembali password akun Anda."
           });
         }
+        return res.json({
+          success: true,
+          source: "mysql",
+          user: {
+            id_user: dbUser.id_user,
+            username: dbUser.username,
+            email: dbUser.email,
+            nama: dbUser.nama_lengkap || dbUser.nama || dbUser.username,
+            role: dbUser.role,
+            id_anggota: dbUser.id_anggota ? String(dbUser.id_anggota) : void 0,
+            id_kecamatan: dbUser.id_kecamatan_scope || dbUser.id_kecamatan || void 0
+          }
+        });
       }
     }
   } catch (err) {
     console.error("MySQL Auth Check Error:", err);
   }
-  const clean = username.trim().toLowerCase();
-  if (clean === "superadmin" || clean.includes("admin.kabupaten")) {
-    return res.json({
-      success: true,
-      source: "local_auth",
+  const defaultAccounts = {
+    superadmin: {
+      pass: process.env.ADMIN_PASSWORD || "admin",
       user: {
         id_user: 1,
         username: "superadmin",
         email: "admin.kabupaten@ppdi-bandungkab.id",
-        nama: "Administrator Kabupaten",
+        nama: "ADMINISTRATOR KABUPATEN",
         role: "Superadmin_Kabupaten"
       }
-    });
-  }
-  if (clean === "admin.soreang") {
-    return res.json({
-      success: true,
-      source: "local_auth",
+    },
+    "admin.soreang": {
+      pass: process.env.ADMIN_PASSWORD || "admin",
       user: {
         id_user: 2,
         username: "admin.soreang",
         email: "admin.soreang@ppdi-bandungkab.id",
-        nama: "Admin PK PPDI Soreang",
+        nama: "ADMIN PK PPDI SOREANG",
         role: "Admin_Kecamatan",
         id_kecamatan: "320437"
       }
-    });
-  }
-  if (clean === "admin.banjaran") {
-    return res.json({
-      success: true,
-      source: "local_auth",
+    },
+    "admin.banjaran": {
+      pass: process.env.ADMIN_PASSWORD || "admin",
       user: {
         id_user: 3,
         username: "admin.banjaran",
         email: "admin.banjaran@ppdi-bandungkab.id",
-        nama: "Admin PK PPDI Banjaran",
+        nama: "ADMIN PK PPDI BANJARAN",
         role: "Admin_Kecamatan",
         id_kecamatan: "320413"
       }
+    }
+  };
+  const clean = username.trim().toLowerCase();
+  const matchedDefault = defaultAccounts[clean];
+  if (matchedDefault) {
+    if (String(password).trim() !== matchedDefault.pass) {
+      return res.status(401).json({
+        success: false,
+        message: "Password yang Anda masukkan salah. Silakan periksa kembali password akun Anda."
+      });
+    }
+    return res.json({
+      success: true,
+      source: "local_auth",
+      user: matchedDefault.user
     });
   }
   return res.status(401).json({

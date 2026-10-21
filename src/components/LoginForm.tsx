@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePPDI } from '../context/PPDIContext';
+import { updateFaviconAndTitle } from '../utils/ppdiHelpers';
 import {
   AlertCircle,
   Eye,
@@ -34,7 +35,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onOpenPublicVerify }) => {
     setDbAlertVisible,
   } = usePPDI();
 
-  const [username, setUsername] = useState('superadmin');
+  // Dynamically update document title & favicon based on uploaded logo & title settings
+  useEffect(() => {
+    const title = `${appSettings?.appName || 'PPDI KAB. BANDUNG'}${
+      appSettings?.appSubtitle ? ` - ${appSettings.appSubtitle}` : ' - Portal Keanggotaan'
+    }`;
+    updateFaviconAndTitle(appSettings?.logoUrl, title);
+  }, [appSettings?.logoUrl, appSettings?.appName, appSettings?.appSubtitle]);
+
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -119,12 +128,25 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onOpenPublicVerify }) => {
       {/* Top Navbar with live Database Connection Status Trigger */}
       <header className="absolute top-0 left-0 right-0 z-20 px-4 sm:px-8 py-3.5 flex items-center justify-between border-b border-white/10 bg-black/25 backdrop-blur-md">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-[#064E3B] text-amber-300 flex items-center justify-center font-bold text-xs shadow-xs border border-white/15">
-            <Shield className="w-3.5 h-3.5" />
-          </div>
+          {appSettings?.logoUrl ? (
+            <img
+              src={appSettings.logoUrl}
+              alt="Logo"
+              className="w-7 h-7 rounded-lg object-contain bg-white/10 p-0.5 border border-white/15 shadow-xs"
+            />
+          ) : (
+            <div className="w-7 h-7 rounded-lg bg-[#064E3B] text-amber-300 flex items-center justify-center font-bold text-xs shadow-xs border border-white/15">
+              <Shield className="w-3.5 h-3.5" />
+            </div>
+          )}
+          <span className="text-xs font-mono tracking-widest uppercase text-emerald-300/80">
+                PORTAL RESMI KEANGGOTAAN
+          </span>
           <span className="text-xs sm:text-sm font-bold tracking-tight text-white uppercase font-mono">
             {appSettings?.appName || 'PPDI KAB. BANDUNG'}
           </span>
+          
+
         </div>
 
         {/* Database Status Trigger Pill */}
@@ -136,16 +158,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onOpenPublicVerify }) => {
               <span className="sm:hidden">Cek DB...</span>
             </div>
           ) : dbStatus?.success ? (
-            <button
-              onClick={() => setIsDbModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-950/70 hover:bg-emerald-900/90 backdrop-blur-md border border-emerald-500/50 text-emerald-200 text-xs font-mono transition-all cursor-pointer shadow-sm group"
-              title="Koneksi database MySQL aktif. Klik untuk melihat detail & tabel."
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-950/70 backdrop-blur-md border border-emerald-500/50 text-emerald-200 text-xs font-mono shadow-sm select-none"
+              title="Status: Database MySQL Terhubung Aktif"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <Database className="w-3.5 h-3.5 text-emerald-400" />
               <span className="hidden sm:inline font-semibold">MySQL Terhubung ({dbStatus.latencyMs}ms)</span>
               <span className="sm:hidden font-semibold">MySQL Aktif</span>
-            </button>
+            </div>
           ) : (
             <button
               onClick={() => setIsDbModalOpen(true)}
@@ -243,18 +264,27 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onOpenPublicVerify }) => {
         {/* Left Column: Hero */}
         <div className="hero">
           {/* Logo display if configured in Setting Aplikasi */}
-          {appSettings?.logoUrl ? (
-            <div className="mb-6 flex items-center gap-3">
+          <div className="mb-6 flex items-center gap-3.5">
+            {appSettings?.logoUrl ? (
               <img
                 src={appSettings.logoUrl}
                 alt="Logo Organisasi"
-                className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-md rounded-lg p-1 bg-white/10 backdrop-blur-xs border border-white/20"
+                className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-md rounded-xl p-1.5 bg-white/10 backdrop-blur-md border border-white/20"
               />
-              <span className="text-xs font-mono tracking-widest uppercase text-emerald-300/80">
+            ) : (
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-[#064E3B] text-amber-300 flex items-center justify-center font-bold shadow-md border border-white/20">
+                <Shield className="w-8 h-8 text-emerald-300" />
+              </div>
+            )}
+            <div>
+              <span className="text-xs font-mono tracking-widest uppercase text-emerald-300/90 font-bold block">
                 PORTAL RESMI KEANGGOTAAN
               </span>
+              <span className="text-[11px] font-mono text-white/70 block uppercase">
+                {appSettings?.appName || 'PPDI KABUPATEN BANDUNG'}
+              </span>
             </div>
-          ) : null}
+          </div>
 
           <h1
             className="uppercase tracking-tight font-extrabold"
@@ -359,28 +389,26 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onOpenPublicVerify }) => {
             >
               ✕
             </button>
-          <div className="flex items-center justify-between mb-6">
-            <h2
-              style={{
-                fontSize: '1.5rem',
-                fontWeight: 700,
-                color: 'var(--ink)',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              Akses Sistem
-            </h2>
-            <span
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: '0.65rem',
-                color: 'var(--accent)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-              }}
-            >
-              Auth Gateway
-            </span>
+          <div className="flex items-center gap-3.5 mb-6 pb-4 border-b border-white/10">
+            {appSettings?.logoUrl ? (
+              <img
+                src={appSettings.logoUrl}
+                alt="Logo"
+                className="w-12 h-12 rounded-xl object-contain bg-white/10 p-1 border border-white/20 shrink-0 shadow-sm"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-xl bg-[#064E3B] text-amber-300 flex items-center justify-center shrink-0 border border-white/20 shadow-sm">
+                <Shield className="w-6 h-6 text-emerald-300" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl font-bold text-white tracking-tight leading-tight truncate">
+                {appSettings?.appName || 'Akses Sistem'}
+              </h2>
+              <span className="font-mono text-[10px] text-amber-300 tracking-wider uppercase block truncate mt-0.5">
+                {appSettings?.appSubtitle || 'Auth Gateway · Portal Keanggotaan'}
+              </span>
+            </div>
           </div>
 
           {errorMsg && (

@@ -24,7 +24,7 @@ import {
   INITIAL_IURAN,
   INITIAL_USERS,
 } from '../data/initialData';
-import { buildFullMember, generateNextKTA, safeFetchJson } from '../utils/ppdiHelpers';
+import { buildFullMember, generateNextKTA, safeFetchJson, updateFaviconAndTitle } from '../utils/ppdiHelpers';
 
 interface PPDIContextType {
   anggotaList: Anggota[];
@@ -225,6 +225,14 @@ export const PPDIProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(appSettings));
   }, [appSettings]);
+
+  // Dynamically update document title & favicon generated from uploaded logo
+  useEffect(() => {
+    const title = `${appSettings.appName || 'PPDI KAB. BANDUNG'}${
+      appSettings.appSubtitle ? ` - ${appSettings.appSubtitle}` : ' - Portal Keanggotaan'
+    }`;
+    updateFaviconAndTitle(appSettings.logoUrl, title);
+  }, [appSettings.logoUrl, appSettings.appName, appSettings.appSubtitle]);
 
   // Fetch full live data from remote MySQL database
   // Fetch full live data from remote MySQL database
@@ -825,6 +833,18 @@ export const PPDIProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!res.ok || json.success === false) {
       throw new Error(json.message || res.error || 'Gagal menambahkan akun pengguna');
     }
+    const newId = json.id_user || Date.now();
+    const newUser: UserAccount = {
+      id_user: newId,
+      username: data.username || '',
+      email: data.email || '',
+      nama: data.nama || data.username || '',
+      password: data.password || 'admin',
+      role: data.role || 'Admin_Kecamatan',
+      id_kecamatan: data.id_kecamatan,
+      id_desa: data.id_desa,
+    };
+    setUserList((prev) => [...prev, newUser]);
     await refreshDataFromMySQL();
     return json;
   };
@@ -839,6 +859,18 @@ export const PPDIProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!res.ok || json.success === false) {
       throw new Error(json.message || res.error || 'Gagal memperbarui akun pengguna');
     }
+    setUserList((prev) =>
+      prev.map((u) => {
+        if (u.id_user === id) {
+          return {
+            ...u,
+            ...data,
+            password: data.password ? data.password : u.password,
+          };
+        }
+        return u;
+      })
+    );
     await refreshDataFromMySQL();
     return json;
   };
@@ -933,13 +965,22 @@ export const PPDIProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (username: string, password: string) => {
+    const cleanUser = username.trim();
+    const cleanPass = password.trim();
+
+    if (!cleanUser || !cleanPass) {
+      return { success: false, message: 'Username dan password wajib diisi!' };
+    }
+
     try {
       const res = await safeFetchJson('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: cleanUser, password: cleanPass }),
       });
       const data = res.data;
+
+      // 1. Sukses terautentikasi dari server backend
       if (res.ok && data?.success && data.user) {
         setIsAuthenticated(true);
         localStorage.setItem(STORAGE_KEYS.AUTH, 'true');
@@ -947,22 +988,52 @@ export const PPDIProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await refreshDataFromMySQL();
         return { success: true };
       }
-      if (data?.message && res.status === 401) {
-        return { success: false, message: data.message };
+
+      // 2. Kredensial ditolak oleh backend (401 atau success: false)
+      if (res.status === 401 || (data && data.success === false)) {
+        return {
+          success: false,
+          message: data?.message || 'Password yang Anda masukkan salah. Silakan periksa kembali.',
+        };
       }
-      throw new Error(data?.message || res.error || 'Login gagal');
+
+      // 3. Error respons backend lainnya (400, 403, 500, dll.)
+      if (!res.ok) {
+        return {
+          success: false,
+          message: data?.message || res.error || 'Autentikasi gagal. Silakan periksa kembali username dan password.',
+        };
+      }
+
+      return { success: false, message: 'Autentikasi gagal. Kredensial tidak valid.' };
     } catch (err: any) {
-      const cleanUsername = username.trim().toLowerCase();
+      // 4. Offline Fallback HANYA jika server backend tidak dapat dihubungi sama sekali (network error):
+      // Wajib memvalidasi password secara ketat terhadap user yang tersimpan!
+      const cleanLower = cleanUser.toLowerCase();
       const matched = userList.find(
-        (u) => u.username.toLowerCase() === cleanUsername || u.email.toLowerCase() === cleanUsername
+        (u) => u.username.toLowerCase() === cleanLower || u.email.toLowerCase() === cleanLower
       );
+
       if (matched) {
-        setIsAuthenticated(true);
-        localStorage.setItem(STORAGE_KEYS.AUTH, 'true');
-        setCurrentUserId(matched.id_user);
-        return { success: true };
+        // Validasi password ketat di mode offline
+        const storedPass = matched.password || 'admin';
+        if (cleanPass === storedPass) {
+          setIsAuthenticated(true);
+          localStorage.setItem(STORAGE_KEYS.AUTH, 'true');
+          setCurrentUserId(matched.id_user);
+          return { success: true };
+        } else {
+          return {
+            success: false,
+            message: 'Password yang Anda masukkan salah. Silakan periksa kembali.',
+          };
+        }
       }
-      return { success: false, message: 'Kredensial salah atau koneksi backend terganggu.' };
+
+      return {
+        success: false,
+        message: 'Pengguna tidak ditemukan atau kredensial tidak valid.',
+      };
     }
   };
 
