@@ -191,7 +191,7 @@ export const AnggotaDetailModal: React.FC<AnggotaDetailModalProps> = ({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-neutral-500">Nomor Induk Perangkat Desa (NIAP)</span>
-                      <span className="font-mono text-neutral-900">{member.anggota.niap_nipd || '-'}</span>
+                      <span className="font-mono text-neutral-900">{member.anggota.nipd || '-'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-neutral-500">Tempat, Tanggal Lahir</span>

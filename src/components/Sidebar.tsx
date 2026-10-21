@@ -38,6 +38,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenVerifyModal, isOpen, set
     appSettings,
   } = usePPDI();
 
+  const permissions = appSettings.rolePermissions?.[currentUser.role] || {};
+
   // Settings childmenu items
   const settingsSubmenu = [
     { id: 'settings-app', label: 'Setting Aplikasi', icon: Sliders },
@@ -45,7 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenVerifyModal, isOpen, set
     { id: 'settings-role', label: 'Tingkatan (Role)', icon: UserCheck },
     { id: 'settings-db', label: 'Setting Database', icon: Database },
     { id: 'skema', label: 'Skema Database & SQL', icon: FileText },
-  ];
+  ].filter((sub) => permissions[sub.id]?.view);
 
   // Check if current tab is any of the settings submenus
   const isSettingsActive = [
@@ -95,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenVerifyModal, isOpen, set
     },
     { id: 'arsip', label: 'e-Arsip Berkas SK', icon: FileText },
     { id: 'iuran', label: 'Kas & Iuran Anggota', icon: Wallet },
-  ];
+  ].filter((item) => permissions[item.id]?.view);
 
   // Helper renderer for Nav Links & Submenu
   const renderNavLinks = (isMobile: boolean = false) => {
@@ -139,69 +141,71 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenVerifyModal, isOpen, set
         })}
 
         {/* Separator before Settings */}
-        <div className="pt-2">
-          <div className="brand-meta px-2 py-1 text-[#111113]/50">PENGATURAN & SISTEM</div>
+        {settingsSubmenu.length > 0 && (
+          <div className="pt-2">
+            <div className="brand-meta px-2 py-1 text-[#111113]/50">PENGATURAN & SISTEM</div>
 
-          {/* Pengaturan Parent Button with Dropdown Chevron */}
-          <button
-            type="button"
-            onClick={() => {
-              setIsSettingsOpen((prev) => !prev);
-              if (!isSettingsOpen && !isSettingsActive) {
-                setActiveTab('settings-app');
-                if (isMobile) setIsOpen(false);
-              }
-            }}
-            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-md transition-all cursor-pointer ${
-              isSettingsActive
-                ? 'bg-[#064E3B]/10 text-[#064E3B] font-bold border border-[#064E3B]/20'
-                : 'text-[#111113]/80 hover:bg-[#111113]/5 hover:text-[#111113]'
-            }`}
-          >
-            <div className="flex items-center gap-2.5 truncate">
-              <Settings className={`w-4 h-4 shrink-0 ${isSettingsActive ? 'text-[#064E3B]' : 'text-[#111113]/50'}`} />
-              <span className="truncate">Pengaturan</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {isSettingsActive && (
-                <span className="w-1.5 h-1.5 rounded-full bg-[#064E3B]" />
-              )}
-              <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                  isSettingsOpen ? 'rotate-180 text-[#064E3B]' : 'text-[#111113]/40'
-                }`}
-              />
-            </div>
-          </button>
+            {/* Pengaturan Parent Button with Dropdown Chevron */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsSettingsOpen((prev) => !prev);
+                if (!isSettingsOpen && !isSettingsActive) {
+                  setActiveTab(settingsSubmenu[0].id);
+                  if (isMobile) setIsOpen(false);
+                }
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                isSettingsActive
+                  ? 'bg-[#064E3B]/10 text-[#064E3B] font-bold border border-[#064E3B]/20'
+                  : 'text-[#111113]/80 hover:bg-[#111113]/5 hover:text-[#111113]'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 truncate">
+                <Settings className={`w-4 h-4 shrink-0 ${isSettingsActive ? 'text-[#064E3B]' : 'text-[#111113]/50'}`} />
+                <span className="truncate">Pengaturan</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {isSettingsActive && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#064E3B]" />
+                )}
+                <ChevronDown
+                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                    isSettingsOpen ? 'rotate-180 text-[#064E3B]' : 'text-[#111113]/40'
+                  }`}
+                />
+              </div>
+            </button>
 
-          {/* Childmenu Submenu List (Desktop, Tablet & Mobile) */}
-          {isSettingsOpen && (
-            <div className="mt-1 pl-3.5 ml-3 border-l-2 border-[#064E3B]/25 space-y-0.5">
-              {settingsSubmenu.map((sub) => {
-                const SubIcon = sub.icon;
-                const isSubActive = activeTab === sub.id;
-                return (
-                  <button
-                    key={sub.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(sub.id);
-                      if (isMobile) setIsOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all cursor-pointer ${
-                      isSubActive
-                        ? 'bg-[#064E3B] text-white font-semibold shadow-2xs'
-                        : 'text-[#111113]/70 hover:bg-[#111113]/5 hover:text-[#111113]'
-                    }`}
-                  >
-                    <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-amber-300' : 'text-[#111113]/40'}`} />
-                    <span className="truncate">{sub.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+            {/* Childmenu Submenu List (Desktop, Tablet & Mobile) */}
+            {isSettingsOpen && (
+              <div className="mt-1 pl-3.5 ml-3 border-l-2 border-[#064E3B]/25 space-y-0.5">
+                {settingsSubmenu.map((sub) => {
+                  const SubIcon = sub.icon;
+                  const isSubActive = activeTab === sub.id;
+                  return (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(sub.id);
+                        if (isMobile) setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 text-[11px] rounded-md transition-all cursor-pointer ${
+                        isSubActive
+                          ? 'bg-[#064E3B] text-white font-semibold shadow-2xs'
+                          : 'text-[#111113]/70 hover:bg-[#111113]/5 hover:text-[#111113]'
+                      }`}
+                    >
+                      <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-amber-300' : 'text-[#111113]/40'}`} />
+                      <span className="truncate">{sub.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </nav>
     );
   };

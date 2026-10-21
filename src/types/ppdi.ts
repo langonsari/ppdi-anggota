@@ -16,7 +16,7 @@ export type StatusKTA = 'Aktif' | 'Pending' | 'Non-Aktif';
 
 export type StatusVerifikasiIuran = 'Pending' | 'Lunas' | 'Ditolak';
 
-export type UserRole = 'Superadmin_Kabupaten' | 'Admin_Kecamatan' | 'Admin_Desa' | 'Anggota';
+export type UserRole = 'Superadmin_Kabupaten' | 'Admin_Kabupaten' | 'Admin_Kecamatan' | 'Admin_Desa' | 'Anggota';
 
 export interface RefKecamatan {
   id_kecamatan: string; // e.g. "32.04.05"
@@ -39,7 +39,7 @@ export interface RefJabatan {
 export interface Anggota {
   id_anggota: string;
   nik: string; // 16 digit unique
-  niap_nipd?: string; // Nomor Induk Perangkat Desa
+  nipd?: string; // Nomor Induk Perangkat Desa
   nama_lengkap: string;
   gelar_depan?: string;
   gelar_belakang?: string;
@@ -149,6 +149,19 @@ export interface PendaftaranPerangkatDesa {
   nama_jabatan?: string;
 }
 
+export interface Permission {
+  view: boolean;
+  add: boolean;
+  edit: boolean;
+  delete: boolean;
+}
+
+export interface RoleConfig {
+  [role: string]: {
+    [module: string]: Permission;
+  };
+}
+
 export interface AppSettings {
   appName: string;
   appSubtitle: string;
@@ -157,6 +170,7 @@ export interface AppSettings {
   loginBackgroundImage?: string;
   loginOverlayOpacity?: string;
   syncIntervalSeconds: number;
+  rolePermissions?: RoleConfig;
 }
 
 export interface DbStatusInfo {

@@ -94,7 +94,7 @@ export const AnggotaListView: React.FC<AnggotaListViewProps> = ({
       if (q) {
         const matchNik = m.anggota.nik.toLowerCase().includes(q);
         const matchName = m.anggota.nama_lengkap.toLowerCase().includes(q);
-        const matchNiap = m.anggota.niap_nipd?.toLowerCase().includes(q) ?? false;
+        const matchNiap = m.anggota.nipd?.toLowerCase().includes(q) ?? false;
         const matchKta = m.keanggotaan?.no_kta.toLowerCase().includes(q) ?? false;
         const matchDesa = m.desa?.nama_desa.toLowerCase().includes(q) ?? false;
         const matchKec = m.kecamatan?.nama_kecamatan.toLowerCase().includes(q) ?? false;
@@ -180,7 +180,7 @@ export const AnggotaListView: React.FC<AnggotaListViewProps> = ({
     const rows = filteredList.map((m, idx) => [
       idx + 1,
       `'${m.anggota.nik}`,
-      m.anggota.niap_nipd || '-',
+      m.anggota.nipd || '-',
       `"${m.anggota.nama_lengkap}"`,
       m.anggota.gelar_depan || '',
       m.anggota.gelar_belakang || '',
@@ -468,10 +468,10 @@ export const AnggotaListView: React.FC<AnggotaListViewProps> = ({
                             </div>
                             <div className="text-[11px] text-neutral-500 font-mono flex items-center gap-1.5">
                               <span>NIK: {item.anggota.nik}</span>
-                              {item.anggota.niap_nipd && (
+                              {item.anggota.nipd && (
                                 <>
                                   <span>·</span>
-                                  <span>NIAP: {item.anggota.niap_nipd}</span>
+                                  <span>NIAP: {item.anggota.nipd}</span>
                                 </>
                               )}
                             </div>

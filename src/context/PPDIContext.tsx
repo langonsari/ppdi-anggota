@@ -130,6 +130,32 @@ const DEFAULT_SETTINGS: AppSettings = {
   loginBackgroundImage: '',
   loginOverlayOpacity: '0.4',
   syncIntervalSeconds: 60,
+  rolePermissions: {
+    'Superadmin_Kabupaten': {
+      'dashboard': { view: true, add: true, edit: true, delete: true },
+      'pendaftaran': { view: true, add: true, edit: true, delete: true },
+      'anggota': { view: true, add: true, edit: true, delete: true },
+      'ekta': { view: true, add: true, edit: true, delete: true },
+      'pensiun': { view: true, add: true, edit: true, delete: true },
+      'arsip': { view: true, add: true, edit: true, delete: true },
+      'iuran': { view: true, add: true, edit: true, delete: true },
+      'settings-app': { view: true, add: true, edit: true, delete: true },
+      'settings-user': { view: true, add: true, edit: true, delete: true },
+      'settings-role': { view: true, add: true, edit: true, delete: true },
+      'settings-db': { view: true, add: true, edit: true, delete: true },
+      'skema': { view: true, add: true, edit: true, delete: true },
+    },
+    'Admin_Kabupaten': {
+      'dashboard': { view: true, add: false, edit: false, delete: false },
+      'pendaftaran': { view: true, add: true, edit: true, delete: true },
+      'anggota': { view: true, add: true, edit: true, delete: true },
+      'ekta': { view: true, add: true, edit: true, delete: true },
+      'pensiun': { view: true, add: false, edit: false, delete: false },
+      'arsip': { view: true, add: true, edit: true, delete: true },
+      'iuran': { view: true, add: true, edit: true, delete: true },
+      'settings-user': { view: true, add: true, edit: true, delete: true },
+    },
+  },
 };
 
 export const PPDIProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

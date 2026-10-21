@@ -574,11 +574,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onOpenPublicVerify }) => {
         </div>
       )}
 
-      {/* Database Connection & MySQL Status Modal (Accessible from public page) */}
-      <DbConnectionModal
-        isOpen={isDbModalOpen}
-        onClose={() => setIsDbModalOpen(false)}
-      />
+
     </div>
   );
 };

@@ -195,7 +195,7 @@ export const AnggotaFormModal: React.FC<AnggotaFormModalProps> = ({
     if (editMember) {
       const a = editMember.anggota;
       setNik(a.nik);
-      setNiap(a.niap_nipd || '');
+      setNiap(a.nipd || '');
       setNamaLengkap(a.nama_lengkap);
       setGelarDepan(a.gelar_depan || '');
       setGelarBelakang(a.gelar_belakang || '');
@@ -536,7 +536,7 @@ export const AnggotaFormModal: React.FC<AnggotaFormModalProps> = ({
         // Update existing member details
         await updateAnggota(editMember.anggota.id_anggota, {
           nik,
-          niap_nipd: effectiveNiap,
+          nipd: effectiveNiap,
           nama_lengkap: namaLengkap.trim().toUpperCase(),
           gelar_depan: gelarDepan ? gelarDepan.trim() : undefined,
           gelar_belakang: gelarBelakang ? gelarBelakang.trim() : undefined,
@@ -570,7 +570,7 @@ export const AnggotaFormModal: React.FC<AnggotaFormModalProps> = ({
         const result = await addAnggotaWithJobAndKta(
           {
             nik,
-            niap_nipd: effectiveNiap,
+            nipd: effectiveNiap,
             nama_lengkap: namaLengkap.trim().toUpperCase(),
             gelar_depan: gelarDepan ? gelarDepan.trim() : undefined,
             gelar_belakang: gelarBelakang ? gelarBelakang.trim() : undefined,

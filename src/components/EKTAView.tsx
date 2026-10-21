@@ -253,7 +253,7 @@ export const EKTAView: React.FC<EKTAViewProps> = ({ selectedMemberId, onOpenVeri
                         <div>
                           <span className="text-emerald-300 text-[8px] block">NIAP / NIPD</span>
                           <span className="font-mono font-semibold">
-                            {currentMember.anggota.niap_nipd || '-'}
+                            {currentMember.anggota.nipd || '-'}
                           </span>
                         </div>
                       </div>

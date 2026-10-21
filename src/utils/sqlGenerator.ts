@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS \`ref_jabatan\` (
 CREATE TABLE IF NOT EXISTS \`anggota\` (
   \`id_anggota\` VARCHAR(36) NOT NULL COMMENT 'UUID / BIGINT identifier',
   \`nik\` VARCHAR(16) NOT NULL COMMENT '16 digit NIK KTP',
-  \`niap_nipd\` VARCHAR(30) NULL COMMENT 'Nomor Induk Perangkat Desa',
+  \`nipd\` VARCHAR(30) NULL COMMENT 'Nomor Induk Perangkat Desa (28 digit)',
   \`nama_lengkap\` VARCHAR(150) NOT NULL,
   \`gelar_depan\` VARCHAR(30) NULL,
   \`gelar_belakang\` VARCHAR(50) NULL,
@@ -157,7 +157,7 @@ CREATE OR REPLACE VIEW \`v_anggota_aktif_kabupaten\` AS
 SELECT 
     a.id_anggota,
     a.nik,
-    a.niap_nipd,
+    a.nipd,
     CONCAT(IFNULL(CONCAT(a.gelar_depan, ' '), ''), a.nama_lengkap, IFNULL(CONCAT(', ', a.gelar_belakang), '')) AS nama_berkelar,
     a.tanggal_lahir,
     TIMESTAMPDIFF(YEAR, a.tanggal_lahir, CURDATE()) AS usia_saat_ini,
@@ -239,7 +239,7 @@ return new class extends Migration {
         Schema::create('anggota', function (Blueprint $table) {
             $table->uuid('id_anggota')->primary();
             $table->string('nik', 16)->unique();
-            $table->string('niap_nipd', 30)->nullable();
+            $table->string('nipd', 30)->nullable();
             $table->string('nama_lengkap', 150)->index();
             $table->string('gelar_depan', 30)->nullable();
             $table->string('gelar_belakang', 50)->nullable();
@@ -350,7 +350,7 @@ class CreatePpdiSchema extends Migration {
         $this->forge->addField([
             'id_anggota' => ['type' => 'VARCHAR', 'constraint' => 36],
             'nik' => ['type' => 'VARCHAR', 'constraint' => 16, 'unique' => true],
-            'niap_nipd' => ['type' => 'VARCHAR', 'constraint' => 30, 'null' => true],
+            'nipd' => ['type' => 'VARCHAR', 'constraint' => 30, 'null' => true],
             'nama_lengkap' => ['type' => 'VARCHAR', 'constraint' => 150],
             'gelar_depan' => ['type' => 'VARCHAR', 'constraint' => 30, 'null' => true],
             'gelar_belakang' => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => true],

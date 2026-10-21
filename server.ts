@@ -480,8 +480,7 @@ app.post('/api/db/init-tables', async (_req, res) => {
       CREATE TABLE IF NOT EXISTS \`anggota\` (
         \`id_anggota\` VARCHAR(36) NOT NULL,
         \`nik\` VARCHAR(16) NOT NULL,
-        \`niap\` VARCHAR(30) NULL,
-        \`niap_nipd\` VARCHAR(30) NULL,
+        \`nipd\` VARCHAR(30) NULL,
         \`nama_lengkap\` VARCHAR(150) NOT NULL,
         \`gelar_depan\` VARCHAR(30) NULL,
         \`gelar_belakang\` VARCHAR(50) NULL,
@@ -501,6 +500,12 @@ app.post('/api/db/init-tables', async (_req, res) => {
         UNIQUE KEY \`uq_anggota_nik\` (\`nik\`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+
+    // Migration: drop niap column if exists, rename niap_nipd to nipd if exists
+    try { await conn.query(`ALTER TABLE anggota DROP COLUMN niap`); } catch (_) {}
+    try { await conn.query(`ALTER TABLE anggota CHANGE COLUMN niap_nipd nipd VARCHAR(30) NULL`); } catch (_) {
+      try { await conn.query(`ALTER TABLE anggota RENAME COLUMN niap_nipd TO nipd`); } catch (_) {}
+    }
 
     // 5. riwayat_jabatan
     await conn.query(`
@@ -664,7 +669,7 @@ app.get('/api/anggota', async (_req, res) => {
       SELECT 
         a.id_anggota,
         a.nik,
-        COALESCE(a.niap_nipd, a.niap) as niap_nipd,
+        COALESCE(a.nipd, a.niap_nipd, a.niap) as nipd,
         a.nama_lengkap,
         a.gelar_depan,
         a.gelar_belakang,
@@ -833,7 +838,7 @@ app.post('/api/anggota', async (req, res) => {
     const newIdRiwayat = crypto.randomUUID();
     const newIdPpdi = crypto.randomUUID();
 
-    const nipdValue = anggota.niap_nipd || anggota.niap || generateServerNIPD({
+    const nipdValue = anggota.nipd || anggota.niap_nipd || anggota.niap || generateServerNIPD({
       tanggal_lahir: anggota.tanggal_lahir,
       tmt_jabatan: riwayat?.tmt_jabatan,
       jenis_kelamin: anggota.jenis_kelamin,
@@ -844,12 +849,11 @@ app.post('/api/anggota', async (req, res) => {
 
     // 1. Insert into anggota
     await conn.query(
-      `INSERT INTO anggota (id_anggota, nik, niap, niap_nipd, nama_lengkap, gelar_depan, gelar_belakang, tempat_lahir, tanggal_lahir, jenis_kelamin, agama, pendidikan_terakhir, no_hp_wa, email, foto, alamat_rumah, status_pernikahan)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO anggota (id_anggota, nik, nipd, nama_lengkap, gelar_depan, gelar_belakang, tempat_lahir, tanggal_lahir, jenis_kelamin, agama, pendidikan_terakhir, no_hp_wa, email, foto, alamat_rumah, status_pernikahan)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newIdAnggota,
         anggota.nik,
-        nipdValue,
         nipdValue,
         (anggota.nama_lengkap || '').trim().toUpperCase(),
         anggota.gelar_depan || null,
@@ -971,16 +975,22 @@ app.post('/api/anggota/batch-import', async (req, res) => {
       const newIdAnggota = crypto.randomUUID();
       const newIdRiwayat = crypto.randomUUID();
       const newIdPpdi = crypto.randomUUID();
-      const nipdVal = ang.niap || ang.niap_nipd || `NIPD.${nikStr.slice(-6)}`;
+      const nipdVal = ang.nipd || ang.niap || ang.niap_nipd || generateServerNIPD({
+        tanggal_lahir: ang.tanggal_lahir,
+        tmt_jabatan: ang.tmt_jabatan,
+        jenis_kelamin: ang.jenis_kelamin,
+        id_jabatan: ang.id_jabatan,
+        id_kecamatan: ang.id_kecamatan,
+        id_desa: ang.id_desa || ang.desa,
+      });
 
       // Insert anggota
       await conn.query(
-        `INSERT INTO anggota (id_anggota, nik, niap, niap_nipd, nama_lengkap, gelar_depan, gelar_belakang, tempat_lahir, tanggal_lahir, jenis_kelamin, agama, pendidikan_terakhir, no_hp_wa, email, foto, alamat_rumah, status_pernikahan)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO anggota (id_anggota, nik, nipd, nama_lengkap, gelar_depan, gelar_belakang, tempat_lahir, tanggal_lahir, jenis_kelamin, agama, pendidikan_terakhir, no_hp_wa, email, foto, alamat_rumah, status_pernikahan)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newIdAnggota,
           nikStr,
-          nipdVal,
           nipdVal,
           ang.nama_lengkap.trim().toUpperCase(),
           ang.gelar_depan || null,
@@ -1095,7 +1105,7 @@ app.put('/api/anggota/:id', async (req, res) => {
     await conn.query(
       `UPDATE anggota SET
         nik = COALESCE(?, nik),
-        niap = COALESCE(?, niap),
+        nipd = COALESCE(?, nipd),
         nama_lengkap = COALESCE(?, nama_lengkap),
         gelar_depan = ?,
         gelar_belakang = ?,
@@ -1112,7 +1122,7 @@ app.put('/api/anggota/:id', async (req, res) => {
       WHERE id_anggota = ?`,
       [
         data.nik,
-        data.niap_nipd || data.niap,
+        data.nipd || data.niap_nipd || data.niap,
         data.nama_lengkap ? data.nama_lengkap.trim().toUpperCase() : null,
         data.gelar_depan !== undefined ? data.gelar_depan : null,
         data.gelar_belakang !== undefined ? data.gelar_belakang : null,

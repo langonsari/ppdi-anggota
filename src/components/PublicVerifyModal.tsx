@@ -157,7 +157,7 @@ export const PublicVerifyModal: React.FC<PublicVerifyModalProps> = ({
                         (result.anggota.gelar_belakang ? `, ${result.anggota.gelar_belakang}` : '')}
                     </div>
                     <div className="text-[11px] text-neutral-500 font-mono">
-                      NIK: {result.anggota.nik} {result.anggota.niap_nipd ? `· NIAP: ${result.anggota.niap_nipd}` : ''}
+                      NIK: {result.anggota.nik} {result.anggota.nipd ? `· NIAP: ${result.anggota.nipd}` : ''}
                     </div>
                   </div>
                 </div>

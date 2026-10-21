@@ -12,6 +12,7 @@ import { ArsipSKView } from './components/ArsipSKView';
 import { IuranView } from './components/IuranView';
 import { SqlSchemaView } from './components/SqlSchemaView';
 import { UserSettingsView } from './components/UserSettingsView';
+import { RoleManagementView } from './components/RoleManagementView';
 import { AppSettingsView } from './components/AppSettingsView';
 import { PendaftaranApprovalView } from './components/PendaftaranApprovalView';
 import { AnggotaFormModal } from './components/AnggotaFormModal';
@@ -132,7 +133,7 @@ const MainAppContent: React.FC = () => {
           {activeTab === 'iuran' && <IuranView />}
           {(activeTab === 'settings' || activeTab === 'settings-app') && <AppSettingsView />}
           {activeTab === 'settings-user' && <UserSettingsView />}
-          {activeTab === 'settings-role' && <UserSettingsView />}
+          {activeTab === 'settings-role' && <RoleManagementView />}
           {activeTab === 'settings-db' && <DbSettingsView />}
           {activeTab === 'skema' && <SqlSchemaView />}
         </main>
@@ -163,10 +164,12 @@ const MainAppContent: React.FC = () => {
       />
 
       {/* Database Connection & MySQL Status Modal */}
-      <DbConnectionModal
-        isOpen={isDbModalOpen}
-        onClose={() => setIsDbModalOpen(false)}
-      />
+      {currentUser.role === 'Superadmin_Kabupaten' && (
+        <DbConnectionModal
+          isOpen={isDbModalOpen}
+          onClose={() => setIsDbModalOpen(false)}
+        />
+      )}
 
       {/* Floating Database Connection Status & Quick Diagnostic Trigger */}
       <aside aria-label="Status Koneksi Database" className="fixed bottom-4 right-4 z-40 no-print flex items-center gap-2">
